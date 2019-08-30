@@ -1,0 +1,11 @@
+ValidationError:
+  type: object
+  properties:
+    title:
+      type: string
+      description: "Error title"
+      example: Validation errors
+    message:
+      type: string
+      description: "Error description"
+      example: Please refer to the documentation (/documentation) for the correct input data format

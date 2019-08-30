@@ -35,7 +35,16 @@ func (product *Product) getNormalisedName() string {
 	return strings.Replace(strings.ToLower(product.Name), "::", " ", -1)
 }
 
-func (product *Product) setCategory(category Category) {
+func (product *Product) setCategory() {
+	categoryName, _ := redis.String(redisConn.Do("HGET", config.KeyCategories, product.MainCategoryId))
+	category := Category{
+		Id:   product.MainCategoryId,
+		Name: categoryName,
+	}
+	product.setCategoryFromStruct(category)
+}
+
+func (product *Product) setCategoryFromStruct(category Category) {
 	product.MainCategory = category
 	product.MainCategoryId = 0 //We don't want to show this field directly on the product object, but as a part of its category
 }

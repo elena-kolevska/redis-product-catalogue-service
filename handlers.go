@@ -68,7 +68,7 @@ func productsCreate(c echo.Context) error {
 		Name: categoryName,
 	}
 	// Format for presentation
-	product.setCategory(category)
+	product.setCategoryFromStruct(category)
 
 	return c.JSON(http.StatusCreated, product)
 }
@@ -78,7 +78,36 @@ func productsIndex(c echo.Context) error {
 }
 
 func productsShow(c echo.Context) error {
-	return c.String(http.StatusOK, "Products Show")
+	id := c.Param("id")
+	productKeyName := fmt.Sprintf(config.KeyProduct, id)
+
+	//////////////////////////////////////////
+	// Fetch the details of a specific product.
+	//////////////////////////////////////////
+	values, err := redis.Values(redisConn.Do("HGETALL", productKeyName))
+	if err != nil {
+		return serverErrorResponse(c, err)
+	}
+	// If no product is found for the given id, return a 404
+	if len(values) == 0 {
+		return c.JSON(http.StatusNotFound, notFoundError)
+	}
+
+	//////////////////////////////////////////
+	// Populate the Product struct from the hash
+	//////////////////////////////////////////
+	var product Product
+	err = redis.ScanStruct(values, &product)
+	if err != nil {
+		return serverErrorResponse(c, err)
+	}
+
+	//////////////////////////////////////////
+	// Get the product category and attach it to the product struct
+	//////////////////////////////////////////
+	product.setCategory()
+
+	return c.JSON(http.StatusOK, product)
 }
 
 func productsUpdate(c echo.Context) error {

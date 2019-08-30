@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gomodule/redigo/redis"
 	"github.com/labstack/echo"
-	"log"
 )
 
 var (
@@ -20,8 +19,10 @@ func main() {
 	if len(config.RedisPassword) > 0 {
 		_, err := redisConn.Do("AUTH", config.RedisPassword)
 		if err != nil {
+			fmt.Println("❌ Unable to authenticate with the Redis database. Please check your settings in the config.json file")
 			panic(err)
 		}
+		fmt.Println("🔑️ Authenticated with Redis...")
 	}
 	seedDatabase()
 
@@ -47,7 +48,7 @@ func main() {
 }
 
 func newPool() *redis.Pool {
-	log.Println("Connecting to Redis...")
+	fmt.Println("❤️  Connecting to Redis...")
 	return &redis.Pool{
 		MaxIdle:   20,
 		MaxActive: 1000, // max number of connections

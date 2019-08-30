@@ -1,3 +1,23 @@
+post:
+  tags:
+    - Products
+  summary: Create Product
+  operationId: CreateProduct
+  requestBody:
+    $ref: ./../components/requestBodies/Product.yaml
+  responses:
+    201:
+      description: 'Ok'
+      content:
+        application/json:
+          schema:
+            $ref: ./../components/schemas/Product.yaml
+    422:
+      description: 'Validation errors'
+      content:
+        application/json:
+          schema:
+            $ref: ./../components/schemas/Errors.yaml#/ValidationError
 get:
   tags:
     - Products
@@ -21,4 +41,4 @@ get:
             title: "200"
             type: array
             items:
-              $ref: ./../schemas/Product.yaml
+              $ref: ./../components/schemas/Product.yaml

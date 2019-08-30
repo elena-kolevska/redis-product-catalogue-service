@@ -1,0 +1,31 @@
+content:
+  application/json:
+    schema:
+      required:
+        - name
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Rocinante"
+          description: The product name
+        description:
+          type: string
+          example: "The Rocinante (Roci) is a Corvette-class frigate with multiple roles, such as torpedo bomber and boarding party insertion. Originally commissioned as the MCRN Tachi, the ship was stationed onboard the MCRN Battleship Donnager."
+          description: The product description
+        vendor:
+          type: string
+          example: "MCRN"
+          description: The product vendor
+        price:
+          type: number
+          example: 3500000.5
+          description: The product price (in the specified currency)
+        currency:
+          type: string
+          example: "CNY"
+          description: Currency
+        main_category_id:
+          type: integer
+          example: 1
+          description: A valid category id

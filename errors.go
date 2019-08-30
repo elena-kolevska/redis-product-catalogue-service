@@ -14,3 +14,8 @@ var validationError = Error{
 	Title:       "Validation errors",
 	Description: "Please refer to the documentation (/documentation) for the correct input data format",
 }
+
+var notFoundError = Error{
+	Title:       "Not found",
+	Description: "That resource doesn't exist in our database",
+}

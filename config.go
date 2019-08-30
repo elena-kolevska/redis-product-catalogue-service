@@ -32,7 +32,8 @@ func getConfiguration() Config {
 
 	// If there's an error in the json config file we resort to default values
 	if err != nil {
-		fmt.Println("Config file error. Reading default configuration.", err)
+		fmt.Println("❌ Config file error: ", err)
+		fmt.Println("Reading default configuration.")
 		config = getDefaultConfiguration()
 	}
 

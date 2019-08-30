@@ -1,0 +1,24 @@
+get:
+  tags:
+    - Products
+  summary: Get Products
+  operationId: GetProducts
+  parameters:
+    - name: main_category_id
+      in: query
+      description: Filter products by category
+      required: false
+      style: form
+      schema:
+        type: int
+        example: 1
+  responses:
+    200:
+      description: 'Ok'
+      content:
+        application/json:
+          schema:
+            title: "200"
+            type: array
+            items:
+              $ref: ./../schemas/Product.yaml

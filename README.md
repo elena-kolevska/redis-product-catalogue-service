@@ -31,5 +31,9 @@ Category
 ![data Model](data_model.png "Redis Data Model")
 
 ## Documentation
+The API is documented with the OpenAPI 3 specification. You cna find the `yaml` files in the `documentation` folder.
+To export the documentation to a self-contained, zero-dependencies html file, you can use the [ReDoc library](https://github.com/Redocly/redoc). Just run the following command:  
+
+```redoc-cli bundle documentation/index.yaml --output documentation/index.html```
 
 ## Tests

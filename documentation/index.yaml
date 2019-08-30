@@ -1,0 +1,20 @@
+openapi: 3.0.0
+
+info:
+  title: Redis Product Catalogue Service
+  description: A simple REST API providing a way to manage and browse products
+
+servers:
+  - description: Staging
+    url: tbd
+
+tags:
+  - name: Products
+
+paths:
+  /products:
+    $ref: ./paths/Products.yaml
+#  /products/{id}:
+#    $ref: ./paths/Product.yaml
+
+components:

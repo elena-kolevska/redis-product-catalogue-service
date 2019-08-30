@@ -28,7 +28,7 @@ Category
 - Products : Product (0..n)
 
 ## Physical Data Model
-//TODO Add diagram
+![data Model](data_model.png "Redis Data Model")
 
 ## Documentation
 

@@ -19,14 +19,15 @@ func main() {
 	e.HideBanner = true
 
 	// Register routes
-	e.GET("/products", productsIndex)
 	e.POST("/products", productsCreate)
+	e.GET("/products", productsIndex)
 	e.GET("/products/:id", productsShow)
 	e.PATCH("/products/:id", productsUpdate)
 	e.DELETE("/products/:id", productsDelete)
 
 	e.POST("/products/:id/images", imagesCreate)
 	e.GET("/images/:id", imagesGet)
+	e.DELETE("/images/:id", imagesDelete)
 
 	e.File("/documentation", "documentation/index.html")
 

@@ -10,10 +10,21 @@ import (
 var (
 	pool      = newPool()
 	redisConn = pool.Get()
+	config    = getConfiguration()
 )
 
 func main() {
 	defer redisConn.Close()
+
+	// Authenticate with Redis if a password was provided in the conf file
+	if len(config.RedisPassword) > 0 {
+		_, err := redisConn.Do("AUTH", config.RedisPassword)
+		if err != nil {
+			panic(err)
+		}
+	}
+	seedDatabase()
+
 
 	e := echo.New()
 	e.HideBanner = true
@@ -32,7 +43,7 @@ func main() {
 	e.File("/documentation", "documentation/index.html")
 
 	// Start the server
-	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", 8080)))
+	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", config.WebServerPort)))
 }
 
 func newPool() *redis.Pool {
@@ -41,11 +52,19 @@ func newPool() *redis.Pool {
 		MaxIdle:   20,
 		MaxActive: 1000, // max number of connections
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", "localhost:6379")
+			c, err := redis.Dial("tcp", config.RedisEndpoint, )
 			if err != nil {
 				panic(err.Error())
 			}
 			return c, err
 		},
 	}
+}
+
+
+func seedDatabase() {
+	// In our exercise the API consumer is not able to manage categories
+	// so to keep things simple we will use hardcoded category ids
+	// instead of counter id generators
+	_, _ = redisConn.Do("HSET", "categories", "1", "Science vessels", "2", "Warships", "3", "Freighters")
 }

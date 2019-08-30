@@ -22,11 +22,11 @@ type Product struct {
 }
 
 func (product *Product) setId() {
-	id, _ := redis.Int(redisConn.Do("INCR", "product_counter"))
+	id, _ := redis.Int(redisConn.Do("INCR", config.KeyProductCounter))
 	product.Id = id
 }
 func (product *Product) getKeyName() string {
-	return fmt.Sprintf("product:%v", product.Id)
+	return fmt.Sprintf(config.KeyProduct, product.Id)
 }
 func (product *Product) getLexName() string {
 	return fmt.Sprintf("%s::%v", product.getNormalisedName(), product.Id)

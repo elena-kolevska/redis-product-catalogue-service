@@ -1,0 +1,14 @@
+{
+  "web_server_port": 8080,
+
+  "key_categories": "categories",
+  "key_product_counter": "product_counter",
+
+  "key_product": "product:%v",
+  "key_all_products":  "products",
+  "key_all_products_lex": "products:lex",
+  "key_products_in_category":  "products:cat:%v",
+  "key_products_in_category_lex":  "products:lex:cat:%v",
+  "redis_endpoint": "localhost:6379",
+  "redis_password": ""
+}

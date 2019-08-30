@@ -30,7 +30,7 @@ func productsCreate(c echo.Context) error {
 	//////////////////////////////////////////
 	// Check if category id exists
 	//////////////////////////////////////////
-	categoryName, err := redis.String(redisConn.Do("HGET", "categories", product.MainCategoryId))
+	categoryName, err := redis.String(redisConn.Do("HGET", config.KeyCategories, product.MainCategoryId))
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, Error{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
 	}
@@ -50,17 +50,17 @@ func productsCreate(c echo.Context) error {
 	}
 
 	// Add product to sorted set of all products
-	_, _ = redisConn.Do("ZADD", "products", product.Price, product.Id)
+	_, _ = redisConn.Do("ZADD", config.KeyAllProducts, product.Price, product.Id)
 
 	// Add product to sorted set of products in category
-	productsInCategoryKeyName := fmt.Sprintf("products:cat:%v", product.MainCategoryId)
+	productsInCategoryKeyName := fmt.Sprintf(config.KeyProductsInCategory, product.MainCategoryId)
 	_, _ = redisConn.Do("ZADD", productsInCategoryKeyName, product.Price, product.Id)
 
 	// Add product to sorted set for lexicographical sorting (prefix searching)
-	_, _ = redisConn.Do("ZADD", "products:lex", 0, product.getLexName())
+	_, _ = redisConn.Do("ZADD", config.KeyAllProductsLex, 0, product.getLexName())
 
 	// Add product to sorted set of products in category for lexicographical sorting (prefix searching)
-	productsInCategoryLexKeyName := fmt.Sprintf("products:lex:cat:%v", product.MainCategoryId)
+	productsInCategoryLexKeyName := fmt.Sprintf(config.KeyProductsInCategoryLex, product.MainCategoryId)
 	_, _ = redisConn.Do("ZADD", productsInCategoryLexKeyName, 0, product.getLexName())
 
 	category := Category{

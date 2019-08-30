@@ -36,4 +36,7 @@ To export the documentation to a self-contained, zero-dependencies html file, yo
 
 ```redoc-cli bundle documentation/index.yaml --output documentation/index.html```
 
+## Configuration
+When setting up rename the `conf_example.json` file to `conf.json` and populate it with your values. 
+
 ## Tests

@@ -231,7 +231,7 @@ func imagesCreate(c echo.Context) error {
 	// TODO Check if product exists
 
 	// Get new image id from counter
-	imageId, err := redis.Int(redisConn.Do("INCR", config.KeyProductCounter))
+	imageId, err := redis.Int(redisConn.Do("INCR", config.KeyImageCounter))
 	if err != nil {
 		return serverErrorResponse(c, err)
 	}
@@ -243,6 +243,9 @@ func imagesCreate(c echo.Context) error {
 	// Save image to Redis
 	body, _ := ioutil.ReadAll(c.Request().Body)
 	_, _ = redisConn.Do("SET", keyName, body)
+
+	// Save image to "all images" hash
+	_, _ = redisConn.Do("HSET", config.KeyImages, imageId, productId)
 
 	// Set up the image struct
 	image := Image{
@@ -258,7 +261,25 @@ func imagesCreate(c echo.Context) error {
 	return c.JSON(http.StatusCreated, image)
 }
 func imagesDelete(c echo.Context) error {
-	return c.String(http.StatusNoContent, "Images Delete")
+	imageId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, Error{
+			Title:       "Wrong parameters",
+			Description: "The image id in the url needs to be a valid number",
+		})
+	}
+
+	productId, err := redis.Int(redisConn.Do("HGET", config.KeyImages, imageId))
+	if err == redis.ErrNil {
+		return c.JSON(http.StatusNotFound, notFoundError)
+	}
+
+	_,_ = redisConn.Do("HDEL", config.KeyImages, imageId)
+	_,_ = redisConn.Do("HDEL", getProductImagesKeyName(productId), imageId)
+	_,_ = redisConn.Do("DEL", getImageNameById(imageId))
+
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 func serverErrorResponse(c echo.Context, err error) error {

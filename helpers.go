@@ -15,6 +15,10 @@ func getCategoryNameById(id int) (string, error) {
 	return categoryName, nil
 }
 
+func getProductNameById(id int) string {
+	return fmt.Sprintf(config.KeyProduct, id)
+}
+
 func getImageNameById(id int) string {
 	return fmt.Sprintf(config.KeyImage, strconv.Itoa(id))
 }
@@ -56,6 +60,21 @@ func getCategoriesMap() map[int]Category {
 	}
 
 	return categories
+}
+
+func getProductImagesFromHash(values map[string]string) []Image {
+	images := make([]Image, 0)
+
+	for imageId, imageUrl := range values {
+		imageId, _ := strconv.Atoi(imageId)
+		image := Image{
+			Id:   imageId,
+			Url: imageUrl,
+		}
+		images = append(images, image)
+	}
+
+	return images
 }
 
 func normaliseSearchString(s string) string {

@@ -77,6 +77,7 @@ func productsCreate(c echo.Context) error {
 }
 
 func productsIndex(c echo.Context) error {
+
 	var results []string
 	keyName := config.KeyAllProductsLex
 	products := make([]Product, 0)
@@ -130,10 +131,15 @@ func productsIndex(c echo.Context) error {
 	////////////////////////////////////////////////////
 	for _, product := range results {
 		temp := strings.Split(product, "::")
-		productId := temp[1]
+		productId, _ := strconv.Atoi(temp[1])
 
-		productKeyName := fmt.Sprintf(config.KeyProduct, productId)
-		err := redisConn.Send("HGETALL", productKeyName)
+		// Get the product data
+		err := redisConn.Send("HGETALL", getProductNameById(productId))
+		if err != nil {
+			return serverErrorResponse(c, err)
+		}
+		// Get the product images
+		err = redisConn.Send("HGETALL", getProductImagesKeyName(productId))
 		if err != nil {
 			return serverErrorResponse(c, err)
 		}
@@ -151,6 +157,10 @@ func productsIndex(c echo.Context) error {
 		var product Product
 		_ = redis.ScanStruct(values, &product)
 		product.MainCategory = categories[product.MainCategoryId]
+
+		// Now grab the image data
+		imageValues, _ := redis.StringMap(redisConn.Receive())
+		product.Images = getProductImagesFromHash(imageValues)
 
 		products = append(products, product)
 	}
@@ -241,7 +251,7 @@ func imagesCreate(c echo.Context) error {
 		Url:       getImageUrlById(imageId),
 	}
 
-	// Add image to product's images set
+	// Add image to product's images hash
 	productImagesKeyName := getProductImagesKeyName(productId)
 	_ ,_ = redisConn.Do("HSET", productImagesKeyName, image.Id, image.Url)
 

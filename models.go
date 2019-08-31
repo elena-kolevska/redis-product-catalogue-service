@@ -54,7 +54,7 @@ func (product *Product) setCategoryFromStruct(category Category) {
 type Image struct {
 	Id        int    `json:"id"`
 	Value     byte   `json:"-"`
-	ProductId int    `json:"product_id"`
+	ProductId int    `json:"product_id,omitempty"`
 	Url       string `json:"url"`
 }
 

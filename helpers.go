@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gomodule/redigo/redis"
 	"strconv"
 	"strings"
@@ -12,6 +13,18 @@ func getCategoryNameById(id int) (string, error) {
 		return "", err
 	}
 	return categoryName, nil
+}
+
+func getImageNameById(id int) string {
+	return fmt.Sprintf(config.KeyImage, strconv.Itoa(id))
+}
+
+func getImageUrlById(id int) string {
+	return fmt.Sprintf("/images/%v", strconv.Itoa(id))
+}
+
+func getProductImagesKeyName(id int) string {
+	return fmt.Sprintf(config.KeyProductImages, strconv.Itoa(id))
 }
 
 func populateProductFromHash(values []interface{}) (Product, error) {

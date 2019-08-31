@@ -14,7 +14,10 @@ type Config struct {
 
 	KeyCategories            string `json:"key_categories"`
 	KeyProductCounter        string `json:"key_product_counter"`
+	KeyImageCounter          string `json:"key_image_counter"`
+	KeyImage                 string `json:"key_image"`
 	KeyProduct               string `json:"key_product"`
+	KeyProductImages         string `json:"key_product_images"`
 	KeyAllProducts           string `json:"key_all_products"`
 	KeyAllProductsLex        string `json:"key_all_products_lex"`
 	KeyProductsInCategory    string `json:"key_products_in_category"`
@@ -51,7 +54,10 @@ func getDefaultConfiguration() Config {
 
 		KeyCategories:            "categories",
 		KeyProductCounter:        "product_counter",
+		KeyImageCounter:          "image_counter",
 		KeyProduct:               "product:%v",
+		KeyImage:                 "image:%v",
+		KeyProductImages:         "product:%v:images",
 		KeyAllProducts:           "products",
 		KeyAllProductsLex:        "products:lex",
 		KeyProductsInCategory:    "products:cat:%v",

@@ -52,9 +52,10 @@ func (product *Product) setCategoryFromStruct(category Category) {
 // IMAGE MODEL
 //////////////////////
 type Image struct {
-	Id        int  `redis:"id" json:"id"`
-	Value     byte `redis:"value" json:"value"`
-	ProductId int  `redis:"value" json:"value"`
+	Id        int    `json:"id"`
+	Value     byte   `json:"-"`
+	ProductId int    `json:"product_id"`
+	Url       string `json:"url"`
 }
 
 //////////////////////

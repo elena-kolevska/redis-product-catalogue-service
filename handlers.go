@@ -5,6 +5,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -193,10 +194,46 @@ func productsDelete(c echo.Context) error {
 }
 
 func imagesGet(c echo.Context) error {
-	return c.String(http.StatusOK, "Images Get")
+	x,_ := redis.Bytes(redisConn.Do("GET", "testimage"))
+	//x, _ = redisConn.Do("SET", "testimage", body)
+
+	return c.Blob(http.StatusCreated, "image/jpg", x)
+	//return c.String(http.StatusOK, "Images Get")
 }
 func imagesCreate(c echo.Context) error {
-	return c.String(http.StatusCreated, "Images Create")
+
+	productId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, validationError)
+	}
+	// TODO Check if product exists
+
+	// Get new image id from counter
+	imageId, err := redis.Int(redisConn.Do("INCR", config.KeyProductCounter))
+	if err != nil {
+		return serverErrorResponse(c, err)
+	}
+
+	// Create image key name
+	keyName := getImageNameById(imageId)
+
+
+	// Save image to Redis
+	body, _ := ioutil.ReadAll(c.Request().Body)
+	_, _ = redisConn.Do("SET", keyName, body)
+
+	// Set up the image struct
+	image := Image{
+		Id:        imageId,
+		ProductId: productId,
+		Url:       getImageUrlById(imageId),
+	}
+
+	// Add image to product's images set
+	productImagesKeyName := getProductImagesKeyName(productId)
+	_ ,_ = redisConn.Do("SADD", productImagesKeyName, image.Url)
+
+	return c.JSON(http.StatusCreated, image)
 }
 func imagesDelete(c echo.Context) error {
 	return c.String(http.StatusNoContent, "Images Delete")

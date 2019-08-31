@@ -10,5 +10,7 @@
   "key_products_in_category":  "products:cat:%v",
   "key_products_in_category_lex":  "products:lex:cat:%v",
   "redis_endpoint": "localhost:6379",
-  "redis_password": ""
+  "redis_password": "",
+
+  "results_per_page": 20
 }

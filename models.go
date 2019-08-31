@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/gomodule/redigo/redis"
-	"strings"
 )
 
 //////////////////////
@@ -32,7 +31,7 @@ func (product *Product) getLexName() string {
 	return fmt.Sprintf("%s::%v", product.getNormalisedName(), product.Id)
 }
 func (product *Product) getNormalisedName() string {
-	return strings.Replace(strings.ToLower(product.Name), "::", " ", -1)
+	return normaliseSearchString(product.Name)
 }
 
 func (product *Product) setCategory() {

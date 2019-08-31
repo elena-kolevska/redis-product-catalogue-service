@@ -67,5 +67,5 @@ func seedDatabase() {
 	// In our exercise the API consumer is not able to manage categories
 	// so to keep things simple we will use hardcoded category ids
 	// instead of counter id generators
-	_, _ = redisConn.Do("HSET", "categories", "1", "Science vessels", "2", "Warships", "3", "Freighters")
+	_, _ = redisConn.Do("HSET", "categories", "1", "Science vessels", "2", "Warships", "3", "Freighters", "4", "Colony Ships")
 }

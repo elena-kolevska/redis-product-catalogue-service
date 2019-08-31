@@ -7,10 +7,10 @@ import (
 )
 
 type Config struct {
-	WebServerPort            int    `json:"web_server_port"`
+	WebServerPort int `json:"web_server_port"`
 
-	RedisEndpoint            string `json:"redis_endpoint"`
-	RedisPassword            string `json:"redis_password"`
+	RedisEndpoint string `json:"redis_endpoint"`
+	RedisPassword string `json:"redis_password"`
 
 	KeyCategories            string `json:"key_categories"`
 	KeyProductCounter        string `json:"key_product_counter"`
@@ -19,6 +19,8 @@ type Config struct {
 	KeyAllProductsLex        string `json:"key_all_products_lex"`
 	KeyProductsInCategory    string `json:"key_products_in_category"`
 	KeyProductsInCategoryLex string `json:"key_products_in_category_lex"`
+
+	ResultsPerPage int `json:"results_per_page"`
 }
 
 func getConfiguration() Config {
@@ -54,5 +56,6 @@ func getDefaultConfiguration() Config {
 		KeyAllProductsLex:        "products:lex",
 		KeyProductsInCategory:    "products:cat:%v",
 		KeyProductsInCategoryLex: "products:lex:cat:%v",
+		ResultsPerPage:           20,
 	}
 }

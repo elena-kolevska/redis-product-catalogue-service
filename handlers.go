@@ -6,6 +6,8 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 func productsCreate(c echo.Context) error {
@@ -30,7 +32,7 @@ func productsCreate(c echo.Context) error {
 	//////////////////////////////////////////
 	// Check if category id exists
 	//////////////////////////////////////////
-	categoryName, err := redis.String(redisConn.Do("HGET", config.KeyCategories, product.MainCategoryId))
+	categoryName, err := getCategoryNameById(product.MainCategoryId)
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, Error{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
 	}
@@ -74,7 +76,85 @@ func productsCreate(c echo.Context) error {
 }
 
 func productsIndex(c echo.Context) error {
-	return c.String(http.StatusOK, "Products Index")
+	var results []string
+	keyName := config.KeyAllProductsLex
+	products := make([]Product, 0)
+	categories := getCategoriesMap()
+
+	////////////////////////////////////////////////////
+	// Check if we need to show all products or only products in a certain category
+	////////////////////////////////////////////////////
+	mainCategoryIdParam := c.QueryParam("main_category_id")
+	if len(mainCategoryIdParam) > 0 {
+		mainCategoryId, _ := strconv.Atoi(mainCategoryIdParam)
+
+		// Check if category id exists and if it does, look into a different key (products by category)
+		_, ok := categories[mainCategoryId]
+		if ok {
+			keyName = fmt.Sprintf(config.KeyProductsInCategoryLex, mainCategoryId)
+		}
+	}
+
+	////////////////////////////////////////////////////
+	// Get pagination positions
+	////////////////////////////////////////////////////
+	pageNumber, _ := strconv.Atoi(c.QueryParam("page"))
+	if pageNumber < 1 {
+		pageNumber = 1
+	}
+	fromPosition := (pageNumber - 1) * config.ResultsPerPage
+	toPosition := fromPosition + config.ResultsPerPage - 1
+
+	////////////////////////////////////////////////////
+	// Check if we need to search by name (prefix)
+	////////////////////////////////////////////////////
+	if c.QueryParam("search") != "" {
+		searchString := normaliseSearchString(c.QueryParam("search"))
+		fromArg := "[" + searchString
+		toArg := "[" + searchString + "\xff"
+		results, _ = redis.Strings(redisConn.Do("ZRANGEBYLEX", keyName, fromArg, toArg, "LIMIT", fromPosition, config.ResultsPerPage))
+	} else {
+		results, _ = redis.Strings(redisConn.Do("ZRANGE", keyName, fromPosition, toPosition))
+	}
+
+	////////////////////////////////////////////////////
+	// If no results - respond with an empty json array
+	////////////////////////////////////////////////////
+	if len(results) == 0 {
+		return c.JSON(http.StatusOK, products)
+	}
+
+	////////////////////////////////////////////////////
+	// Send all the HGETALL commands in a pipeline, so we don't need to make too many requests to the database
+	////////////////////////////////////////////////////
+	for _, product := range results {
+		temp := strings.Split(product, "::")
+		productId := temp[1]
+
+		productKeyName := fmt.Sprintf(config.KeyProduct, productId)
+		err := redisConn.Send("HGETALL", productKeyName)
+		if err != nil {
+			return serverErrorResponse(c, err)
+		}
+	}
+
+	_ = redisConn.Flush()
+
+	////////////////////////////////////////////////////
+	// Call "Receive" on the client for every hash in the collection,
+	// scan it into a struct and append it into the resulting collection
+	////////////////////////////////////////////////////
+	for _, _ = range results {
+		values, _ := redis.Values(redisConn.Receive())
+
+		var product Product
+		_ = redis.ScanStruct(values, &product)
+		product.MainCategory = categories[product.MainCategoryId]
+
+		products = append(products, product)
+	}
+
+	return c.JSON(http.StatusOK, products)
 }
 
 func productsShow(c echo.Context) error {
@@ -96,16 +176,10 @@ func productsShow(c echo.Context) error {
 	//////////////////////////////////////////
 	// Populate the Product struct from the hash
 	//////////////////////////////////////////
-	var product Product
-	err = redis.ScanStruct(values, &product)
+	product, err := populateProductFromHash(values)
 	if err != nil {
 		return serverErrorResponse(c, err)
 	}
-
-	//////////////////////////////////////////
-	// Get the product category and attach it to the product struct
-	//////////////////////////////////////////
-	product.setCategory()
 
 	return c.JSON(http.StatusOK, product)
 }

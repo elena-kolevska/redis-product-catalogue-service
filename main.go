@@ -41,7 +41,7 @@ func main() {
 	e.GET("/images/:id", imagesGet)
 	e.DELETE("/images/:id", imagesDelete)
 
-	e.File("/documentation", "documentation/index.html")
+	e.File("/documentation", "docs/index.html")
 
 	// Start the server
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", config.WebServerPort)))

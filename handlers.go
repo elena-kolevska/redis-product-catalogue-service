@@ -194,17 +194,29 @@ func productsDelete(c echo.Context) error {
 }
 
 func imagesGet(c echo.Context) error {
-	x,_ := redis.Bytes(redisConn.Do("GET", "testimage"))
-	//x, _ = redisConn.Do("SET", "testimage", body)
+	imageId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, Error{
+			Title:       "Wrong parameters",
+			Description: "The image id in the url needs to be a valid number",
+		})
+	}
 
-	return c.Blob(http.StatusCreated, "image/jpg", x)
-	//return c.String(http.StatusOK, "Images Get")
+	data,err := redis.Bytes(redisConn.Do("GET", getImageNameById(imageId)))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, notFoundError)
+	}
+
+	return c.Blob(http.StatusCreated, "image/jpg", data)
 }
 func imagesCreate(c echo.Context) error {
 
 	productId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, validationError)
+		return c.JSON(http.StatusUnprocessableEntity, Error{
+			Title:       "Wrong parameters",
+			Description: "The product id in the url needs to be a valid number",
+		})
 	}
 	// TODO Check if product exists
 
@@ -231,7 +243,7 @@ func imagesCreate(c echo.Context) error {
 
 	// Add image to product's images set
 	productImagesKeyName := getProductImagesKeyName(productId)
-	_ ,_ = redisConn.Do("SADD", productImagesKeyName, image.Url)
+	_ ,_ = redisConn.Do("HSET", productImagesKeyName, image.Id, image.Url)
 
 	return c.JSON(http.StatusCreated, image)
 }

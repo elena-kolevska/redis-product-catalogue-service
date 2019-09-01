@@ -1,4 +1,5 @@
 # Redis Product Catalogue Service
+[https://elena-kolevska.github.io/redis-product-catalogue-service/]()
 
 ## Overview
 A simple REST API providing a way to manage and browse products
@@ -31,7 +32,7 @@ Category
 ![data Model](data_model.png "Redis Data Model")
 
 ## Documentation
-You can find the documentation at `/documentation`.  
+You can find the documentation at [here](https://elena-kolevska.github.io/redis-product-catalogue-service/).  
 
 The API is documented with the OpenAPI 3 specification. The `yaml` files are in the `docs` folder.
 To export the documentation to a self-contained, zero-dependencies html file, you can use the [ReDoc library](https://github.com/Redocly/redoc). Just run the following command:  

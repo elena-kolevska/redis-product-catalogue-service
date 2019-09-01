@@ -38,7 +38,7 @@ func main() {
 	e.DELETE("/products/:id", productsDelete)
 
 	e.POST("/products/:id/images", imagesCreate)
-	e.GET("/images/:id", imagesGet)
+	e.GET("/images/:id", imagesShow)
 	e.DELETE("/images/:id", imagesDelete)
 
 	e.File("/documentation", "docs/index.html")

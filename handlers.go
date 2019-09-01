@@ -27,7 +27,7 @@ func productsCreate(c echo.Context) error {
 	// TODO Confirm this is the only required field
 	//////////////////////////////////////////
 	if product.Name == "" {
-		return c.JSON(http.StatusUnprocessableEntity, Error{Title: "The name field is required", Description: "Please provide a product name"})
+		return c.JSON(http.StatusUnprocessableEntity, ApiError{Title: "The name field is required", Description: "Please provide a product name"})
 	}
 
 	//////////////////////////////////////////
@@ -35,7 +35,7 @@ func productsCreate(c echo.Context) error {
 	//////////////////////////////////////////
 	categoryName, err := getCategoryNameById(product.MainCategoryId)
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, Error{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
+		return c.JSON(http.StatusUnprocessableEntity, ApiError{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
 	}
 
 	//////////////////////////////////////////
@@ -53,18 +53,10 @@ func productsCreate(c echo.Context) error {
 	}
 
 	// Add product to sorted set of all products
-	_, _ = redisConn.Do("ZADD", config.KeyAllProducts, product.Price, product.Id)
+	_, _ = redisConn.Do("ZADD", config.KeyAllProducts, 0, product.getLexName())
 
 	// Add product to sorted set of products in category
-	productsInCategoryKeyName := fmt.Sprintf(config.KeyProductsInCategory, product.MainCategoryId)
-	_, _ = redisConn.Do("ZADD", productsInCategoryKeyName, product.Price, product.Id)
-
-	// Add product to sorted set for lexicographical sorting (prefix searching)
-	_, _ = redisConn.Do("ZADD", config.KeyAllProductsLex, 0, product.getLexName())
-
-	// Add product to sorted set of products in category for lexicographical sorting (prefix searching)
-	productsInCategoryLexKeyName := fmt.Sprintf(config.KeyProductsInCategoryLex, product.MainCategoryId)
-	_, _ = redisConn.Do("ZADD", productsInCategoryLexKeyName, 0, product.getLexName())
+	_, _ = redisConn.Do("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
 
 	category := Category{
 		Id:   product.MainCategoryId,
@@ -79,7 +71,7 @@ func productsCreate(c echo.Context) error {
 func productsIndex(c echo.Context) error {
 
 	var results []string
-	keyName := config.KeyAllProductsLex
+	keyName := config.KeyAllProducts
 	products := make([]Product, 0)
 	categories := getCategoriesMap()
 
@@ -93,7 +85,7 @@ func productsIndex(c echo.Context) error {
 		// Check if category id exists and if it does, look into a different key (products by category)
 		_, ok := categories[mainCategoryId]
 		if ok {
-			keyName = fmt.Sprintf(config.KeyProductsInCategoryLex, mainCategoryId)
+			keyName = fmt.Sprintf(config.KeyProductsInCategory, mainCategoryId)
 		}
 	}
 
@@ -165,108 +157,96 @@ func productsIndex(c echo.Context) error {
 		products = append(products, product)
 	}
 
-	return c.JSON(http.StatusOK, products)
+	response := PaginatedCollection{
+		CurrentPage:    pageNumber,
+		ResultsPerPage: config.ResultsPerPage,
+		Data:           products,
+	}
+	return c.JSON(http.StatusOK, response)
 }
 
 func productsShow(c echo.Context) error {
-	id := c.Param("id")
-	productKeyName := fmt.Sprintf(config.KeyProduct, id)
-
-	//////////////////////////////////////////
-	// Fetch the details of a specific product.
-	//////////////////////////////////////////
-	values, err := redis.Values(redisConn.Do("HGETALL", productKeyName))
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return serverErrorResponse(c, err)
-	}
-	// If no product is found for the given id, return a 404
-	if len(values) == 0 {
-		return c.JSON(http.StatusNotFound, notFoundError)
+		return c.JSON(urlParamError.HttpStatus, urlParamError)
 	}
 
-	//////////////////////////////////////////
-	// Populate the Product struct from the hash
-	//////////////////////////////////////////
-	product, err := populateProductFromHash(values)
+	product, err := getProductById(id, redisConn)
 	if err != nil {
-		return serverErrorResponse(c, err)
+		switch e := err.(type) {
+		case *ApiError:
+			return c.JSON(e.HttpStatus, e)
+		default:
+			return serverErrorResponse(c, err)
+		}
 	}
 
 	return c.JSON(http.StatusOK, product)
 }
+
 
 func productsUpdate(c echo.Context) error {
 	return c.String(http.StatusOK, "Products Update")
 }
 
 func productsDelete(c echo.Context) error {
-	return c.NoContent(http.StatusNoContent)
-}
-
-func imagesGet(c echo.Context) error {
-	imageId, err := strconv.Atoi(c.Param("id"))
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, Error{
-			Title:       "Wrong parameters",
-			Description: "The image id in the url needs to be a valid number",
-		})
+		return c.JSON(urlParamError.HttpStatus, urlParamError)
 	}
 
-	data,err := redis.Bytes(redisConn.Do("GET", getImageNameById(imageId)))
-	if err != nil {
-		return c.JSON(http.StatusNotFound, notFoundError)
+	product := Product{
+		Id: id,
 	}
 
-	return c.Blob(http.StatusCreated, "image/jpg", data)
-}
-func imagesCreate(c echo.Context) error {
-
-	productId, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, Error{
-			Title:       "Wrong parameters",
-			Description: "The product id in the url needs to be a valid number",
-		})
-	}
-	// TODO Check if product exists
-
-	// Get new image id from counter
-	imageId, err := redis.Int(redisConn.Do("INCR", config.KeyImageCounter))
+	err = product.delete(redisConn)
 	if err != nil {
 		return serverErrorResponse(c, err)
 	}
 
-	// Create image key name
-	keyName := getImageNameById(imageId)
+	return c.NoContent(http.StatusNoContent)
+}
 
-
-	// Save image to Redis
-	body, _ := ioutil.ReadAll(c.Request().Body)
-	_, _ = redisConn.Do("SET", keyName, body)
-
-	// Save image to "all images" hash
-	_, _ = redisConn.Do("HSET", config.KeyImages, imageId, productId)
-
-	// Set up the image struct
-	image := Image{
-		Id:        imageId,
-		ProductId: productId,
-		Url:       getImageUrlById(imageId),
+func imagesShow(c echo.Context) error {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, urlParamError)
 	}
 
-	// Add image to product's images hash
-	productImagesKeyName := getProductImagesKeyName(productId)
-	_ ,_ = redisConn.Do("HSET", productImagesKeyName, image.Id, image.Url)
+	data, err := getImageDataById(id, redisConn)
+	if err != nil {
+		return c.JSON(notFoundError.HttpStatus, notFoundError)
+	}
+
+	// We can use a jpg subtype here, even if the image is of a different type. The browser still renders it properly.
+	return c.Blob(http.StatusCreated, "image/jpg", data)
+}
+
+func imagesCreate(c echo.Context) error {
+	productId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, urlParamError)
+	}
+
+	// Check if product exists
+	if productExists(productId, redisConn) == false {
+		return c.JSON(notFoundError.HttpStatus, notFoundError)
+	}
+
+	body, _ := ioutil.ReadAll(c.Request().Body)
+
+	image, err := saveImage(productId, body, redisConn)
+	if err != nil {
+		return serverErrorResponse(c, err)
+	}
 
 	return c.JSON(http.StatusCreated, image)
 }
+
 func imagesDelete(c echo.Context) error {
 	imageId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, Error{
-			Title:       "Wrong parameters",
-			Description: "The image id in the url needs to be a valid number",
-		})
+		return c.JSON(http.StatusUnprocessableEntity, urlParamError)
 	}
 
 	productId, err := redis.Int(redisConn.Do("HGET", config.KeyImages, imageId))
@@ -274,15 +254,16 @@ func imagesDelete(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, notFoundError)
 	}
 
-	_,_ = redisConn.Do("HDEL", config.KeyImages, imageId)
-	_,_ = redisConn.Do("HDEL", getProductImagesKeyName(productId), imageId)
-	_,_ = redisConn.Do("DEL", getImageNameById(imageId))
-
+	image := Image{
+		Id: imageId,
+		ProductId: productId,
+	}
+	image.delete(redisConn)
 
 	return c.NoContent(http.StatusNoContent)
 }
 
 func serverErrorResponse(c echo.Context, err error) error {
 	log.Error(err)
-	return c.JSON(http.StatusInternalServerError, serverError)
+	return c.JSON(serverError.HttpStatus, serverError)
 }

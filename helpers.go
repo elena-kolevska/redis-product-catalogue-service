@@ -19,6 +19,11 @@ func getProductNameById(id int) string {
 	return fmt.Sprintf(config.KeyProduct, id)
 }
 
+func getNextImageId(redisConn redis.Conn) int {
+	id, _ := redis.Int(redisConn.Do("INCR", config.KeyImageCounter))
+	return id
+}
+
 func getImageNameById(id int) string {
 	return fmt.Sprintf(config.KeyImage, strconv.Itoa(id))
 }
@@ -29,6 +34,9 @@ func getImageUrlById(id int) string {
 
 func getProductImagesKeyName(id int) string {
 	return fmt.Sprintf(config.KeyProductImages, strconv.Itoa(id))
+}
+func getProductsInCategoryKeyName(categoryId int) string {
+	return fmt.Sprintf(config.KeyProductsInCategory, categoryId)
 }
 
 func populateProductFromHash(values []interface{}) (Product, error) {

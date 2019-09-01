@@ -12,6 +12,14 @@ post:
         application/json:
           schema:
             $ref: ./../components/schemas/Product.yaml
+          example:
+            id: 77
+            name: Rocinante
+            description: The Rocinante (Roci) is a Corvette-class frigate with multiple roles, such as torpedo bomber and boarding party insertion. Originally commissioned as the MCRN Tachi, the ship was stationed onboard the MCRN Battleship Donnager.
+            vendor: MCRN
+            currency: CNY
+            main_category: 1
+            images: null
     422:
       description: 'Validation errors'
       content:
@@ -39,6 +47,17 @@ get:
         application/json:
           schema:
             title: "200"
-            type: array
-            items:
-              $ref: ./../components/schemas/Product.yaml
+            type: object
+            properties:
+              current_page:
+                type: integer
+                example: 1
+                description: The current page
+              per_page:
+                type: integer
+                example: 20
+                description: Number of results per page
+              data:
+                type: array
+                items:
+                  $ref: ./../components/schemas/Product.yaml

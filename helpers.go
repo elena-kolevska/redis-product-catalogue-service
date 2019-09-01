@@ -77,7 +77,7 @@ func getProductImagesFromHash(values map[string]string) []Image {
 		imageId, _ := strconv.Atoi(imageId)
 		image := Image{
 			Id:   imageId,
-			Url: imageUrl,
+			Url: config.BaseUri + imageUrl,
 		}
 		images = append(images, image)
 	}

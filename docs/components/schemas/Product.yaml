@@ -3,20 +3,19 @@ type: object
 properties:
   id:
     type: integer
-    format: int32
     example: 77
     description: The product id
   name:
     type: string
-    example: "Rocinante"
+    example: Rocinante
     description: The product name
   description:
     type: string
-    example: "The Rocinante (Roci) is a Corvette-class frigate with multiple roles, such as torpedo bomber and boarding party insertion. Originally commissioned as the MCRN Tachi, the ship was stationed onboard the MCRN Battleship Donnager."
+    example: The Rocinante (Roci) is a Corvette-class frigate with multiple roles, such as torpedo bomber and boarding party insertion. Originally commissioned as the MCRN Tachi, the ship was stationed onboard the MCRN Battleship Donnager.
     description: The product description
   vendor:
     type: string
-    example: "MCRN"
+    example: MCRN
     description: The product vendor
   price:
     type: number
@@ -24,7 +23,11 @@ properties:
     description: The product price (in the specified currency)
   currency:
     type: string
-    example: "CNY"
+    example: CNY
     description: Currency
   main_category:
-    $ref: "./Category.yaml"
+    $ref: ./Category.yaml
+  images:
+    type: array
+    items:
+      $ref: ./Image.yaml

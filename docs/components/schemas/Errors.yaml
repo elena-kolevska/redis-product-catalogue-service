@@ -9,3 +9,15 @@ ValidationError:
       type: string
       description: "Error description"
       example: Please refer to the documentation (/documentation) for the correct input data format
+
+NotFoundError:
+  type: object
+  properties:
+    title:
+      type: string
+      description: "Error title"
+      example: Not found
+    message:
+      type: string
+      description: "Error description"
+      example: That resource doesn't exist in our database

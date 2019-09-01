@@ -10,11 +10,12 @@ servers:
 
 tags:
   - name: Products
+  - name: Images
 
 paths:
   /products:
     $ref: ./paths/Products.yaml
-#  /products/{id}:
-#    $ref: ./paths/Product.yaml
+  /products/{id}:
+    $ref: ./paths/Product.yaml
 
 components:

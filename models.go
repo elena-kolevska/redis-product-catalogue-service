@@ -186,6 +186,7 @@ func saveImage(productId int, data []byte, redisConn redis.Conn) (Image, error){
 	if err != nil {
 		return image, err
 	}
+	image.Url = config.BaseUri + image.Url
 
 	return image, nil
 }

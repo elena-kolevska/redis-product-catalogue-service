@@ -1,0 +1,56 @@
+put:
+  tags:
+    - Products
+  summary: Update Product
+  operationId: UpdateProduct
+  requestBody:
+    $ref: ./../components/requestBodies/Product.yaml
+  responses:
+    200:
+      description: 'Ok'
+      content:
+        application/json:
+          schema:
+            $ref: ./../components/schemas/Product.yaml
+    422:
+      description: 'Validation errors'
+      content:
+        application/json:
+          schema:
+            $ref: ./../components/schemas/Errors.yaml#/ValidationError
+get:
+  tags:
+    - Products
+  summary: Get Product
+  operationId: GetProduct
+  parameters:
+    - name: id
+      in: path
+      description: Product id
+      required: true
+      style: simple
+      schema:
+        type: int
+        example: 1
+  responses:
+    200:
+      description: 'Ok'
+      content:
+        application/json:
+          schema:
+            $ref: ./../components/schemas/Product.yaml
+
+delete:
+  tags:
+    - Products
+  summary: Delete Product
+  operationId: DeleteProduct
+  responses:
+    204:
+      description: 'Ok'
+    404:
+      description: 'Validation errors'
+      content:
+        application/json:
+          schema:
+            $ref: ./../components/schemas/Errors.yaml#/NotFoundError

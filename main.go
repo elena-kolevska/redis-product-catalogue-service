@@ -34,7 +34,7 @@ func main() {
 	e.POST("/products", productsCreate)
 	e.GET("/products", productsIndex)
 	e.GET("/products/:id", productsShow)
-	e.PATCH("/products/:id", productsUpdate)
+	e.PUT("/products/:id", productsUpdate)
 	e.DELETE("/products/:id", productsDelete)
 
 	e.POST("/products/:id/images", imagesCreate)

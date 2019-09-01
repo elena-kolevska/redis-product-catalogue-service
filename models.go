@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gomodule/redigo/redis"
+	"github.com/labstack/gommon/log"
 	"strconv"
 )
 
@@ -50,6 +51,21 @@ func (product *Product) setCategoryFromStruct(category Category) {
 
 func (product *Product) delete(redisConn redis.Conn) error {
 
+	productValues, err := redis.Values(redisConn.Do("HGETALL", product.getKeyName()))
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	if len(productValues) == 0 {
+		log.Error(err)
+		return &notFoundError
+	}
+	err = redis.ScanStruct(productValues, product)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
 	// Delete all product images
 	productImagesKeyName := getProductImagesKeyName(product.Id)
 	imageValues, _ := redis.StringMap(redisConn.Do("HGETALL", productImagesKeyName))
@@ -69,14 +85,14 @@ func (product *Product) delete(redisConn redis.Conn) error {
 
 
 	// Delete from the all_products and "products_by_cat" hashes
-	_ = redisConn.Send("HDEL", config.KeyAllProducts, product.Id)
-	_ = redisConn.Send("HDEL", getProductsInCategoryKeyName(product.MainCategoryId), product.Id)
+	_ = redisConn.Send("ZREM", config.KeyAllProducts, product.getLexName())
+	_ = redisConn.Send("ZREM", getProductsInCategoryKeyName(product.MainCategoryId), product.getLexName())
 
 	// Delete the image key
 	_ = redisConn.Send("DEL", product.getKeyName())
 
 	// Execute transaction
-	_, err := redisConn.Do("EXEC")
+	_, err = redisConn.Do("EXEC")
 	if err != nil {
 		return err
 	}

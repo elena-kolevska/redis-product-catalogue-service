@@ -184,9 +184,74 @@ func productsShow(c echo.Context) error {
 	return c.JSON(http.StatusOK, product)
 }
 
-
 func productsUpdate(c echo.Context) error {
-	return c.String(http.StatusOK, "Products Update")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(urlParamError.HttpStatus, urlParamError)
+	}
+
+	oldValues, _ := redis.StringMap(redisConn.Do("HGETALL", getProductNameById(id)))
+
+	product := Product{
+		Id: id,
+	}
+	//////////////////////////////////////////
+	// Implicitly check if all data types are correct
+	// (ex. can't send a string as price or category id)
+	//////////////////////////////////////////
+	if err := c.Bind(&product); err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, validationError)
+	}
+
+	//////////////////////////////////////////
+	// Check presence of required fields
+	// TODO Confirm this is the only required field
+	//////////////////////////////////////////
+	if product.Name == "" {
+		return c.JSON(http.StatusUnprocessableEntity, ApiError{Title: "The name field is required", Description: "Please provide a product name"})
+	}
+
+	//////////////////////////////////////////
+	// Get category name
+	//////////////////////////////////////////
+	categoryName, err := getCategoryNameById(product.MainCategoryId)
+	if err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, ApiError{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
+	}
+
+	/////////////////////
+	// Save hash to Redis
+	/////////////////////
+	_, err = redisConn.Do("HSET", redis.Args{product.getKeyName()}.AddFlat(product)...)
+	if err != nil {
+		return serverErrorResponse(c, err)
+	}
+
+	//////////////////////////////////////////
+	// If the category has been updated remove the product from
+	// the old categorised product list and add it to the new one
+	//////////////////////////////////////////
+	oldMainCategoryId,_ := strconv.Atoi(oldValues["main_category_id"])
+	if oldMainCategoryId != product.MainCategoryId {
+		oldLexName := fmt.Sprintf("%s::%v", normaliseSearchString(oldValues["name"]), product.Id)
+		_, _ = redisConn.Do("ZREM", getProductsInCategoryKeyName(oldMainCategoryId), oldLexName)
+		_, _ = redisConn.Do("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
+	}
+
+	category := Category{
+		Id:   product.MainCategoryId,
+		Name: categoryName,
+	}
+	// Format for presentation
+	product.setCategoryFromStruct(category)
+
+	//////////////////////////////////////////
+	// Get the product images
+	//////////////////////////////////////////
+	imageValues, _ := redis.StringMap(redisConn.Do("HGETALL", getProductImagesKeyName(product.Id)))
+	product.Images = getProductImagesFromHash(imageValues)
+
+	return c.JSON(http.StatusOK, product)
 }
 
 func productsDelete(c echo.Context) error {
@@ -201,7 +266,12 @@ func productsDelete(c echo.Context) error {
 
 	err = product.delete(redisConn)
 	if err != nil {
-		return serverErrorResponse(c, err)
+		switch e := err.(type) {
+		case *ApiError:
+			return c.JSON(e.HttpStatus, e)
+		default:
+			return serverErrorResponse(c, err)
+		}
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -255,7 +325,7 @@ func imagesDelete(c echo.Context) error {
 	}
 
 	image := Image{
-		Id: imageId,
+		Id:        imageId,
 		ProductId: productId,
 	}
 	image.delete(redisConn)

@@ -19,7 +19,9 @@ info:
     ```
 
     Endpoint specific errors are defined in their appropriate endpoint
-
+  x-logo:
+    url: "https://i.ibb.co/VS6VZLV/logo.png"
+    altText: Petstore logo
 
 servers:
   - description: Staging
@@ -28,6 +30,11 @@ servers:
 tags:
   - name: Products
   - name: Images
+x-tagGroups:
+  - name: Resources
+    tags:
+      - Products
+      - Images
 
 paths:
   /products:

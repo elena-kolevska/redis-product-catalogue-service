@@ -37,7 +37,7 @@ You can find the documentation at [here](https://elena-kolevska.github.io/redis-
 The API is documented with the OpenAPI 3 specification. The `yaml` files are in the `docs` folder.
 To export the documentation to a self-contained, zero-dependencies html file, you can use the [ReDoc library](https://github.com/Redocly/redoc). Just run the following command:  
 
-```redoc-cli bundle docs/index.yaml --output docs/index.html```
+```redoc-cli bundle docs/index.yaml --output docs/index.html --title "Redis Product Catalogue Service Documentation" --options.theme.colors.primary.main=#D82C20```
 
 ## Configuration
 When setting up the program rename the `conf_example.json` file to `conf.json` and populate it with your values. 

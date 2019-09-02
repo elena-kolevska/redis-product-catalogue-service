@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gomodule/redigo/redis"
 	"strconv"
 )
@@ -12,7 +13,10 @@ type Category struct {
 
 func getCategoriesMap(redisConn redis.Conn) map[int]Category {
 	categories := make(map[int]Category, 0)
-	values, _ := getHashAsStringMap(config.KeyCategories, redisConn)
+	values, e := getHashAsStringMap(config.KeyCategories, redisConn)
+	if e != nil {
+		fmt.Println(e)
+	}
 
 	for categoryId, categoryName := range values {
 		categoryId, _ := strconv.Atoi(categoryId)

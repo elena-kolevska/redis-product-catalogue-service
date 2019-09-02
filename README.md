@@ -43,6 +43,10 @@ To export the documentation to a self-contained, zero-dependencies html file, yo
 When setting up the program rename the `conf_example.json` file to `conf.json` and populate it with your values. 
 
 ## Tests
+Execute tests the standard way, by running
+```bash
+go test
+``` 
 
 ## TODO
 - Implement authentication

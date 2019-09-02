@@ -52,13 +52,30 @@ func (product *Product) setCategory(redisConn redis.Conn) {
 }
 
 func (product *Product) setImages(redisConn redis.Conn) {
-	values, _ := getHashAsStringMap(getProductImagesKeyName(product.Id), redisConn)
-	product.Images = getProductImagesFromHash(values)
+	imageIds, _ := redis.Ints(redisConn.Do("SMEMBERS", getProductImagesKeyName(product.Id)))
+	//values, _ := getHashAsStringMap(getProductImagesKeyName(product.Id), redisConn)
+	for _, imageId := range imageIds {
+		image := Image{
+			Id:  imageId,
+		}
+		image.setUrl()
+		product.Images = append(product.Images, image)
+	}
 }
 
 // Similar behavior as `setImages` but uses the string map received from a pipeline
-func (product *Product) setImagesFromStringMap(values map[string]string) {
-	product.Images = getProductImagesFromHash(values)
+func (product *Product) setImagesFromStringMap(imageIds []int) {
+	//images := make([]Image, 0)
+
+	for _, imageId := range imageIds {
+		image := Image{
+			Id:  imageId,
+		}
+		image.setUrl()
+		product.Images = append(product.Images, image)
+	}
+
+	//product.Images = images
 }
 
 func (product *Product) delete(redisConn redis.Conn) error {
@@ -99,7 +116,7 @@ func (product *Product) delete(redisConn redis.Conn) error {
 	_ = redisConn.Send("ZREM", config.KeyAllProducts, product.getLexName())
 	_ = redisConn.Send("ZREM", getProductsInCategoryKeyName(product.MainCategoryId), product.getLexName())
 
-	// Delete the image key
+	// Delete the product key
 	_ = redisConn.Send("DEL", product.getKeyName())
 
 	// Execute transaction
@@ -260,7 +277,7 @@ func getProducts(command string, args redis.Args, categories map[int]Category, r
 			return products, nil
 		}
 		// Get the product images
-		err = redisConn.Send("HGETALL", getProductImagesKeyName(productId))
+		err = redisConn.Send("SMEMBERS", getProductImagesKeyName(productId))
 		if err != nil {
 			return products, nil
 		}
@@ -281,8 +298,8 @@ func getProducts(command string, args redis.Args, categories map[int]Category, r
 		product.MainCategoryId = 0
 
 		// Now grab the image data
-		imageValues, _ := redis.StringMap(redisConn.Receive())
-		product.setImagesFromStringMap(imageValues)
+		imageIds, _ := redis.Ints(redisConn.Receive())
+		product.setImagesFromStringMap(imageIds)
 
 		products = append(products, product)
 	}

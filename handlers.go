@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 func productsCreate(c echo.Context) error {
@@ -50,9 +49,9 @@ func productsCreate(c echo.Context) error {
 
 func productsIndex(c echo.Context) error {
 
-	var results []string
+	var command string
+	args:= redis.Args{}
 	keyName := config.KeyAllProducts
-	products := make([]Product, 0)
 	categories := getCategoriesMap(redisConn)
 
 	////////////////////////////////////////////////////
@@ -86,58 +85,19 @@ func productsIndex(c echo.Context) error {
 		searchString := normaliseSearchString(c.QueryParam("search"))
 		fromArg := "[" + searchString
 		toArg := "[" + searchString + "\xff"
-		results, _ = redis.Strings(redisConn.Do("ZRANGEBYLEX", keyName, fromArg, toArg, "LIMIT", fromPosition, config.ResultsPerPage))
+		command = "ZRANGEBYLEX"
+		args = args.Add(keyName).Add(fromArg).Add(toArg).Add("LIMIT").Add(fromPosition).Add(config.ResultsPerPage)
 	} else {
-		results, _ = redis.Strings(redisConn.Do("ZRANGE", keyName, fromPosition, toPosition))
+		command = "ZRANGE"
+		args = args.Add(keyName).Add(fromPosition).Add(toPosition)
 	}
 
-	////////////////////////////////////////////////////
-	// If no results - respond with an empty json array
-	////////////////////////////////////////////////////
-	if len(results) == 0 {
-		return c.JSON(http.StatusOK, products)
+	products, err := getProducts(command, args, categories, redisConn)
+	if err != nil {
+		return serverErrorResponse(c, err)
 	}
 
-	////////////////////////////////////////////////////
-	// Send all the HGETALL commands in a pipeline, so we don't need to make too many requests to the database
-	////////////////////////////////////////////////////
-	for _, product := range results {
-		temp := strings.Split(product, "::")
-		productId, _ := strconv.Atoi(temp[1])
-
-		// Get the product data
-		err := redisConn.Send("HGETALL", getProductNameById(productId))
-		if err != nil {
-			return serverErrorResponse(c, err)
-		}
-		// Get the product images
-		err = redisConn.Send("HGETALL", getProductImagesKeyName(productId))
-		if err != nil {
-			return serverErrorResponse(c, err)
-		}
-	}
-
-	_ = redisConn.Flush()
-
-	////////////////////////////////////////////////////
-	// Call "Receive" on the client for every hash in the collection,
-	// scan it into a struct and append it into the resulting collection
-	////////////////////////////////////////////////////
-	for _, _ = range results {
-		values, _ := redis.Values(redisConn.Receive())
-
-		var product Product
-		_ = redis.ScanStruct(values, &product)
-		product.MainCategory = categories[product.MainCategoryId]
-
-		// Now grab the image data
-		imageValues, _ := redis.StringMap(redisConn.Receive())
-		product.Images = getProductImagesFromHash(imageValues)
-
-		products = append(products, product)
-	}
-
-	response := PaginatedCollection{
+	response := PaginatedProductCollection{
 		CurrentPage:    pageNumber,
 		ResultsPerPage: config.ResultsPerPage,
 		Data:           products,
@@ -273,7 +233,7 @@ func imagesCreate(c echo.Context) error {
 
 	body, _ := ioutil.ReadAll(c.Request().Body)
 
-	image, err := saveImage(productId, body, redisConn)
+	image, err := saveNewImage(productId, body, redisConn)
 	if err != nil {
 		return serverErrorResponse(c, err)
 	}

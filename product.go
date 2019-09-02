@@ -5,6 +5,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/labstack/gommon/log"
 	"strconv"
+	"strings"
 )
 
 //////////////////////
@@ -33,9 +34,11 @@ func (product *Product) getKeyName() string {
 func (product *Product) getLexName() string {
 	return fmt.Sprintf("%s::%v", product.getNormalisedName(), product.Id)
 }
+
 func (product *Product) getNormalisedName() string {
 	return normaliseSearchString(product.Name)
 }
+
 func (product *Product) setCategory(redisConn redis.Conn) {
 	if product.MainCategoryName == "" {
 		categoryName, _ := redis.String(redisConn.Do("HGET", config.KeyCategories, product.MainCategoryId))
@@ -47,10 +50,15 @@ func (product *Product) setCategory(redisConn redis.Conn) {
 	}
 	product.MainCategoryId = 0 //We don't want to show this field directly on the product object, but as a part of its category
 }
-func (product *Product) setImages(redisConn redis.Conn) {
-	imageValues, _ := getHashAsStringMap(getProductImagesKeyName(product.Id), redisConn)
-	product.Images = getProductImagesFromHash(imageValues)
 
+func (product *Product) setImages(redisConn redis.Conn) {
+	values, _ := getHashAsStringMap(getProductImagesKeyName(product.Id), redisConn)
+	product.Images = getProductImagesFromHash(values)
+}
+
+// Similar behavior as `setImages` but uses the string map received from a pipeline
+func (product *Product) setImagesFromStringMap(values map[string]string) {
+	product.Images = getProductImagesFromHash(values)
 }
 
 func (product *Product) delete(redisConn redis.Conn) error {
@@ -192,72 +200,92 @@ func updateProduct(product *Product, oldProduct *Product, redisConn redis.Conn) 
 	return nil
 }
 
-//////////////////////
-// IMAGE MODEL
-//////////////////////
-type Image struct {
-	Id        int    `json:"id"`
-	Value     []byte `json:"-"`
-	ProductId int    `json:"product_id,omitempty"`
-	Url       string `json:"url"`
-}
+func getProductImagesFromHash(values map[string]string) []Image {
+	images := make([]Image, 0)
 
-func (image *Image) delete(redisConn redis.Conn) {
-	_, _ = redisConn.Do("HDEL", config.KeyImages, image.Id)
-	_, _ = redisConn.Do("HDEL", getProductImagesKeyName(image.ProductId), image.Id)
-	_, _ = redisConn.Do("DEL", getImageNameById(image.Id))
-}
-
-func getImageDataById(id int, redisConn redis.Conn) ([]byte, error) {
-	return redis.Bytes(redisConn.Do("GET", getImageNameById(id)))
-}
-
-func saveImage(productId int, data []byte, redisConn redis.Conn) (Image, error) {
-	// Get new image id from counter
-	imageId := getNextImageId(redisConn)
-
-	// Create image key name
-	keyName := getImageNameById(imageId)
-
-	_, err := redisConn.Do("SET", keyName, data)
-	if err != nil {
-		return Image{}, err
+	for imageId, imageUrl := range values {
+		imageId, _ := strconv.Atoi(imageId)
+		image := Image{
+			Id:  imageId,
+			Url: config.BaseUri + imageUrl,
+		}
+		images = append(images, image)
 	}
 
-	// Save image to "all images" hash
-	_, err = redisConn.Do("HSET", config.KeyImages, imageId, productId)
-	if err != nil {
-		return Image{}, err
-	}
-
-	// Set up the image struct
-	image := Image{
-		Id:        imageId,
-		ProductId: productId,
-		Url:       getImageUrlById(imageId),
-	}
-
-	// Add image to product's images hash
-	productImagesKeyName := getProductImagesKeyName(productId)
-	_, err = redisConn.Do("HSET", productImagesKeyName, image.Id, image.Url)
-	if err != nil {
-		return image, err
-	}
-	image.Url = config.BaseUri + image.Url
-
-	return image, nil
+	return images
 }
 
-//////////////////////
-// CATEGORY MODEL
-//////////////////////
-type Category struct {
-	Id   int    `redis:"id" json:"id"`
-	Name string `redis:"name" json:"name"`
+// Helper functions
+func getProductNameById(id int) string {
+	return fmt.Sprintf(config.KeyProduct, id)
+}
+func getProductImagesKeyName(id int) string {
+	return fmt.Sprintf(config.KeyProductImages, strconv.Itoa(id))
+}
+func getProductsInCategoryKeyName(categoryId int) string {
+	return fmt.Sprintf(config.KeyProductsInCategory, categoryId)
 }
 
-type PaginatedCollection struct {
+type PaginatedProductCollection struct {
 	Data           []Product `json:"data"`
 	CurrentPage    int       `json:"current_page"`
 	ResultsPerPage int       `json:"per_page"`
+}
+
+func getProducts(command string, args redis.Args, categories map[int]Category, redisConn redis.Conn) ([]Product,error) {
+
+	products := make([]Product, 0)
+
+	results, err := redis.Strings(redisConn.Do(command, args...))
+	if err != nil {
+		return products, err
+	}
+	////////////////////////////////////////////////////
+	// If no results - respond with an empty json array
+	////////////////////////////////////////////////////
+	if len(results) == 0 {
+		return products, nil
+	}
+
+	////////////////////////////////////////////////////
+	// Send all the HGETALL commands in a pipeline, so we don't need to make too many requests to the database
+	////////////////////////////////////////////////////
+	for _, product := range results {
+		temp := strings.Split(product, "::")
+		productId, _ := strconv.Atoi(temp[1])
+
+		// Get the product data
+		err := redisConn.Send("HGETALL", getProductNameById(productId))
+		if err != nil {
+			return products, nil
+		}
+		// Get the product images
+		err = redisConn.Send("HGETALL", getProductImagesKeyName(productId))
+		if err != nil {
+			return products, nil
+		}
+	}
+
+	_ = redisConn.Flush()
+
+	////////////////////////////////////////////////////
+	// Call "Receive" on the client for every hash in the collection,
+	// scan it into a struct and append it into the resulting collection
+	////////////////////////////////////////////////////
+	for _, _ = range results {
+		values, _ := redis.Values(redisConn.Receive())
+
+		var product Product
+		_ = redis.ScanStruct(values, &product)
+		product.MainCategory = categories[product.MainCategoryId]
+		product.MainCategoryId = 0
+
+		// Now grab the image data
+		imageValues, _ := redis.StringMap(redisConn.Receive())
+		product.setImagesFromStringMap(imageValues)
+
+		products = append(products, product)
+	}
+
+	return products, nil
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func getCategoryNameById(id int) (string, error) {
+func getCategoryNameById(id int, redisConn redis.Conn) (string, error) {
 	categoryName, err := redis.String(redisConn.Do("HGET", config.KeyCategories, id))
 	if err != nil {
 		return "", err

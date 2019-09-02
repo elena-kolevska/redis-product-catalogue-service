@@ -31,39 +31,24 @@ func productsCreate(c echo.Context) error {
 	}
 
 	//////////////////////////////////////////
-	// Check if category id exists
+	// Check category id exists
 	//////////////////////////////////////////
-	categoryName, err := getCategoryNameById(product.MainCategoryId)
+	categoryName, err := getCategoryNameById(product.MainCategoryId, redisConn)
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, ApiError{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
 	}
-
-	//////////////////////////////////////////
-	// Get a product id from the id counter
-	// and assign it to the product struct
-	//////////////////////////////////////////
-	product.setId()
-
-	/////////////////////
-	// Save hash to Redis
-	/////////////////////
-	_, err = redisConn.Do("HSET", redis.Args{product.getKeyName()}.AddFlat(product)...)
-	if err != nil {
-		return serverErrorResponse(c, err)
-	}
-
-	// Add product to sorted set of all products
-	_, _ = redisConn.Do("ZADD", config.KeyAllProducts, 0, product.getLexName())
-
-	// Add product to sorted set of products in category
-	_, _ = redisConn.Do("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
-
 	category := Category{
 		Id:   product.MainCategoryId,
 		Name: categoryName,
 	}
 	// Format for presentation
 	product.setCategoryFromStruct(category)
+
+	err = saveNewProduct(product, redisConn)
+	if err != nil {
+		return serverErrorResponse(c, err)
+	}
+
 
 	return c.JSON(http.StatusCreated, product)
 }
@@ -214,7 +199,7 @@ func productsUpdate(c echo.Context) error {
 	//////////////////////////////////////////
 	// Get category name
 	//////////////////////////////////////////
-	categoryName, err := getCategoryNameById(product.MainCategoryId)
+	categoryName, err := getCategoryNameById(product.MainCategoryId, redisConn)
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, ApiError{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
 	}

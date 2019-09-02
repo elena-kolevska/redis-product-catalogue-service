@@ -134,6 +134,35 @@ func productExists(id int, redisConn redis.Conn) bool {
 	exists, _ := redis.Bool(redisConn.Do("EXISTS", getProductNameById(id)))
 	return exists
 }
+func saveNewProduct(product *Product, redisConn redis.Conn) error {
+	//////////////////////////////////////////
+	// Get a product id from the id counter
+	// and assign it to the product struct
+	//////////////////////////////////////////
+	product.setId()
+
+	/////////////////////
+	// Save hash to Redis
+	/////////////////////
+	_, err := redisConn.Do("HSET", redis.Args{product.getKeyName()}.AddFlat(product)...)
+	if err != nil {
+		return err
+	}
+
+	// Add product to sorted set of all products
+	_, err = redisConn.Do("ZADD", config.KeyAllProducts, 0, product.getLexName())
+	if err != nil {
+		return err
+	}
+
+	// Add product to sorted set of products in category
+	_, err = redisConn.Do("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
+	if err != nil {
+		return err
+	}
+
+	return  nil
+}
 
 //////////////////////
 // IMAGE MODEL

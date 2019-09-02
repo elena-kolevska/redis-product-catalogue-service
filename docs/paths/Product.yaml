@@ -7,11 +7,17 @@ put:
     $ref: ./../components/requestBodies/Product.yaml
   responses:
     200:
-      description: 'Ok'
+      description: Ok
       content:
         application/json:
           schema:
             $ref: ./../components/schemas/Product.yaml
+    404:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: ./../components/schemas/Errors.yaml#/NotFoundError
     422:
       description: 'Validation errors'
       content:
@@ -34,7 +40,7 @@ get:
         example: 1
   responses:
     200:
-      description: 'Ok'
+      description: Ok
       content:
         application/json:
           schema:
@@ -47,9 +53,9 @@ delete:
   operationId: DeleteProduct
   responses:
     204:
-      description: 'Ok'
+      description: Ok
     404:
-      description: 'Validation errors'
+      description: Not found
       content:
         application/json:
           schema:

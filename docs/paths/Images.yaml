@@ -1,0 +1,18 @@
+post:
+  tags:
+    - Images
+  summary: Create Image
+  operationId: CreateImage
+  requestBody:
+    content:
+      image/*:
+        schema:
+          type: string
+          format: binary
+  responses:
+    201:
+      description: Ok
+      content:
+        application/json:
+          schema:
+            $ref: ./../components/schemas/Image.yaml

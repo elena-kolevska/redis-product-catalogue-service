@@ -31,15 +31,15 @@ func main() {
 	e.HideBanner = true
 
 	// Register routes
-	e.POST("/products", productsCreate)
-	e.GET("/products", productsIndex)
-	e.GET("/products/:id", productsShow)
-	e.PUT("/products/:id", productsUpdate)
-	e.DELETE("/products/:id", productsDelete)
+	e.POST("/api/products", productsCreate)
+	e.GET("/api/products", productsIndex)
+	e.GET("/api/products/:id", productsShow)
+	e.PUT("/api/products/:id", productsUpdate)
+	e.DELETE("/api/products/:id", productsDelete)
 
-	e.POST("/products/:id/images", imagesCreate)
-	e.GET("/images/:id", imagesShow)
-	e.DELETE("/images/:id", imagesDelete)
+	e.POST("/api/products/:id/images", imagesCreate)
+	e.GET("/api/images/:id", imagesShow)
+	e.DELETE("/api/images/:id", imagesDelete)
 
 	e.File("/documentation", "docs/index.html")
 

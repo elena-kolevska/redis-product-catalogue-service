@@ -5,7 +5,7 @@
 A simple REST API providing a way to manage and browse products
 
 ## Context
-This project is done as a simple exercise for data modelling with Redis and Go
+This project is done as a simple exercise for data modelling with Redis in Go
 
 ## Logical Data Model
 Image  
@@ -43,3 +43,6 @@ To export the documentation to a self-contained, zero-dependencies html file, yo
 When setting up the program rename the `conf_example.json` file to `conf.json` and populate it with your values. 
 
 ## Tests
+
+## TODO
+- Implement authentication

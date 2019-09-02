@@ -39,24 +39,9 @@ func getProductsInCategoryKeyName(categoryId int) string {
 	return fmt.Sprintf(config.KeyProductsInCategory, categoryId)
 }
 
-func populateProductFromHash(values []interface{}) (Product, error) {
-	var product Product
-	err := redis.ScanStruct(values, &product)
-	if err != nil {
-		return product, err
-	}
-
-	//////////////////////////////////////////
-	// Get the product category and attach it to the product struct
-	//////////////////////////////////////////
-	product.setCategory()
-
-	return product, nil
-}
-
-func getCategoriesMap() map[int]Category {
+func getCategoriesMap(redisConn redis.Conn) map[int]Category {
 	categories := make(map[int]Category, 0)
-	values, _ := redis.StringMap(redisConn.Do("HGETALL", config.KeyCategories))
+	values, _ := getHashAsStringMap(config.KeyCategories, redisConn)
 
 	for categoryId, categoryName := range values {
 		categoryId, _ := strconv.Atoi(categoryId)
@@ -87,4 +72,8 @@ func getProductImagesFromHash(values map[string]string) []Image {
 
 func normaliseSearchString(s string) string {
 	return strings.Replace(strings.ToLower(s), "::", " ", -1)
+}
+
+func getHashAsStringMap (keyName string, redisConn redis.Conn) (map[string]string, error) {
+	return redis.StringMap(redisConn.Do("HGETALL", keyName))
 }

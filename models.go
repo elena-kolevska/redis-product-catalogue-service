@@ -11,15 +11,16 @@ import (
 // PRODUCT MODEL
 //////////////////////
 type Product struct {
-	Id             int      `redis:"id" json:"id"`
-	Name           string   `redis:"name" json:"name"`
-	Description    string   `redis:"description" json:"description"`
-	Vendor         string   `redis:"vendor" json:"vendor"`
-	Price          float32  `redis:"price" json:"price"`
-	Currency       string   `redis:"currency" json:"currency"`
-	MainCategoryId int      `redis:"main_category_id" json:"main_category_id,omitempty"`
-	MainCategory   Category `redis:"-" json:"main_category"`
-	Images         []Image  `redis:"-" json:"images" `
+	Id               int      `redis:"id" json:"id"`
+	Name             string   `redis:"name" json:"name"`
+	Description      string   `redis:"description" json:"description"`
+	Vendor           string   `redis:"vendor" json:"vendor"`
+	Price            float32  `redis:"price" json:"price"`
+	Currency         string   `redis:"currency" json:"currency"`
+	MainCategoryId   int      `redis:"main_category_id" json:"main_category_id,omitempty"`
+	MainCategoryName string   `redis:"-" json:"-"`
+	MainCategory     Category `redis:"-" json:"main_category"`
+	Images           []Image  `redis:"-" json:"images" `
 }
 
 func (product *Product) setId() {
@@ -35,18 +36,21 @@ func (product *Product) getLexName() string {
 func (product *Product) getNormalisedName() string {
 	return normaliseSearchString(product.Name)
 }
-func (product *Product) setCategory() {
-	categoryName, _ := redis.String(redisConn.Do("HGET", config.KeyCategories, product.MainCategoryId))
-	category := Category{
-		Id:   product.MainCategoryId,
-		Name: categoryName,
+func (product *Product) setCategory(redisConn redis.Conn) {
+	if product.MainCategoryName == "" {
+		categoryName, _ := redis.String(redisConn.Do("HGET", config.KeyCategories, product.MainCategoryId))
+		product.MainCategoryName = categoryName
 	}
-	product.setCategoryFromStruct(category)
-}
-
-func (product *Product) setCategoryFromStruct(category Category) {
-	product.MainCategory = category
+	product.MainCategory = Category{
+		Id:   product.MainCategoryId,
+		Name: product.MainCategoryName,
+	}
 	product.MainCategoryId = 0 //We don't want to show this field directly on the product object, but as a part of its category
+}
+func (product *Product) setImages(redisConn redis.Conn) {
+	imageValues, _ := getHashAsStringMap(getProductImagesKeyName(product.Id), redisConn)
+	product.Images = getProductImagesFromHash(imageValues)
+
 }
 
 func (product *Product) delete(redisConn redis.Conn) error {
@@ -68,10 +72,10 @@ func (product *Product) delete(redisConn redis.Conn) error {
 
 	// Delete all product images
 	productImagesKeyName := getProductImagesKeyName(product.Id)
-	imageValues, _ := redis.StringMap(redisConn.Do("HGETALL", productImagesKeyName))
+	imageValues, _ := getHashAsStringMap(productImagesKeyName, redisConn)
 
 	// Start a transaction and send all commands in a pipeline
-	_,_ = redisConn.Do("MULTI")
+	_, _ = redisConn.Do("MULTI")
 
 	for imageId, _ := range imageValues {
 		imageId, _ := strconv.Atoi(imageId)
@@ -82,7 +86,6 @@ func (product *Product) delete(redisConn redis.Conn) error {
 
 	// Delete the product images hash
 	_ = redisConn.Send("DEL", productImagesKeyName)
-
 
 	// Delete from the all_products and "products_by_cat" hashes
 	_ = redisConn.Send("ZREM", config.KeyAllProducts, product.getLexName())
@@ -101,6 +104,9 @@ func (product *Product) delete(redisConn redis.Conn) error {
 }
 
 func getProductById(id int, redisConn redis.Conn) (Product, error) {
+	product := Product{
+		Id: id,
+	}
 
 	//////////////////////////////////////////
 	// Fetch the details of a specific product.
@@ -117,16 +123,10 @@ func getProductById(id int, redisConn redis.Conn) (Product, error) {
 	//////////////////////////////////////////
 	// Populate the Product struct from the hash
 	//////////////////////////////////////////
-	product, err := populateProductFromHash(values)
+	err = redis.ScanStruct(values, &product)
 	if err != nil {
 		return Product{}, err
 	}
-
-	//////////////////////////////////////////
-	// Get the product images
-	//////////////////////////////////////////
-	imageValues, _ := redis.StringMap(redisConn.Do("HGETALL", getProductImagesKeyName(id)))
-	product.Images = getProductImagesFromHash(imageValues)
 
 	return product, nil
 }
@@ -161,7 +161,35 @@ func saveNewProduct(product *Product, redisConn redis.Conn) error {
 		return err
 	}
 
-	return  nil
+	return nil
+}
+
+func updateProduct(product *Product, oldProduct *Product, redisConn redis.Conn) error {
+	/////////////////////
+	// Save hash to Redis
+	/////////////////////
+	_, err := redisConn.Do("HSET", redis.Args{product.getKeyName()}.AddFlat(product)...)
+	if err != nil {
+		return err
+	}
+
+	//////////////////////////////////////////
+	// If the category has been updated remove the product from
+	// the old categorised product list and add it to the new one
+	//////////////////////////////////////////
+	if oldProduct.MainCategoryId != product.MainCategoryId {
+		_, err = redisConn.Do("ZREM", getProductsInCategoryKeyName(oldProduct.MainCategoryId), oldProduct.getLexName())
+		if err != nil {
+			return err
+		}
+
+		_, err = redisConn.Do("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 //////////////////////
@@ -184,7 +212,7 @@ func getImageDataById(id int, redisConn redis.Conn) ([]byte, error) {
 	return redis.Bytes(redisConn.Do("GET", getImageNameById(id)))
 }
 
-func saveImage(productId int, data []byte, redisConn redis.Conn) (Image, error){
+func saveImage(productId int, data []byte, redisConn redis.Conn) (Image, error) {
 	// Get new image id from counter
 	imageId := getNextImageId(redisConn)
 

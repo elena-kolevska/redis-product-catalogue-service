@@ -12,13 +12,13 @@ import (
 )
 
 func productsCreate(c echo.Context) error {
-	product := new(Product)
+	product := Product{}
 
 	//////////////////////////////////////////
-	// Implicitly check if all data types are correct
+	// Read the json data into `product` and implicitly check if all data types are correct
 	// (ex. can't send a string as price or category id)
 	//////////////////////////////////////////
-	if err := c.Bind(product); err != nil {
+	if err := c.Bind(&product); err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, validationError)
 	}
 
@@ -37,19 +37,14 @@ func productsCreate(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, ApiError{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
 	}
-	category := Category{
-		Id:   product.MainCategoryId,
-		Name: categoryName,
-	}
-	// Format for presentation
-	product.setCategoryFromStruct(category)
+	product.MainCategoryName = categoryName
 
-	err = saveNewProduct(product, redisConn)
+	err = saveNewProduct(&product, redisConn)
 	if err != nil {
 		return serverErrorResponse(c, err)
 	}
 
-
+	product.setCategory(redisConn)
 	return c.JSON(http.StatusCreated, product)
 }
 
@@ -58,7 +53,7 @@ func productsIndex(c echo.Context) error {
 	var results []string
 	keyName := config.KeyAllProducts
 	products := make([]Product, 0)
-	categories := getCategoriesMap()
+	categories := getCategoriesMap(redisConn)
 
 	////////////////////////////////////////////////////
 	// Check if we need to show all products or only products in a certain category
@@ -165,6 +160,8 @@ func productsShow(c echo.Context) error {
 			return serverErrorResponse(c, err)
 		}
 	}
+	product.setCategory(redisConn)
+	product.setImages(redisConn)
 
 	return c.JSON(http.StatusOK, product)
 }
@@ -175,13 +172,21 @@ func productsUpdate(c echo.Context) error {
 		return c.JSON(urlParamError.HttpStatus, urlParamError)
 	}
 
-	oldValues, _ := redis.StringMap(redisConn.Do("HGETALL", getProductNameById(id)))
+	oldProduct, err := getProductById(id, redisConn)
+	if err != nil {
+		switch e := err.(type) {
+		case *ApiError:
+			return c.JSON(e.HttpStatus, e)
+		default:
+			return serverErrorResponse(c, err)
+		}
+	}
 
 	product := Product{
 		Id: id,
 	}
 	//////////////////////////////////////////
-	// Implicitly check if all data types are correct
+	// Read the json data into `product` and implicitly check if all data types are correct
 	// (ex. can't send a string as price or category id)
 	//////////////////////////////////////////
 	if err := c.Bind(&product); err != nil {
@@ -200,41 +205,19 @@ func productsUpdate(c echo.Context) error {
 	// Get category name
 	//////////////////////////////////////////
 	categoryName, err := getCategoryNameById(product.MainCategoryId, redisConn)
+	product.MainCategoryName = categoryName
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, ApiError{Title: "Category doesn't exist", Description: "That category id doesn't exist in our system"})
 	}
 
-	/////////////////////
-	// Save hash to Redis
-	/////////////////////
-	_, err = redisConn.Do("HSET", redis.Args{product.getKeyName()}.AddFlat(product)...)
+
+	err = updateProduct(&product, &oldProduct, redisConn)
 	if err != nil {
 		return serverErrorResponse(c, err)
 	}
 
-	//////////////////////////////////////////
-	// If the category has been updated remove the product from
-	// the old categorised product list and add it to the new one
-	//////////////////////////////////////////
-	oldMainCategoryId,_ := strconv.Atoi(oldValues["main_category_id"])
-	if oldMainCategoryId != product.MainCategoryId {
-		oldLexName := fmt.Sprintf("%s::%v", normaliseSearchString(oldValues["name"]), product.Id)
-		_, _ = redisConn.Do("ZREM", getProductsInCategoryKeyName(oldMainCategoryId), oldLexName)
-		_, _ = redisConn.Do("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
-	}
-
-	category := Category{
-		Id:   product.MainCategoryId,
-		Name: categoryName,
-	}
-	// Format for presentation
-	product.setCategoryFromStruct(category)
-
-	//////////////////////////////////////////
-	// Get the product images
-	//////////////////////////////////////////
-	imageValues, _ := redis.StringMap(redisConn.Do("HGETALL", getProductImagesKeyName(product.Id)))
-	product.Images = getProductImagesFromHash(imageValues)
+	product.setCategory(redisConn)
+	product.setImages(redisConn)
 
 	return c.JSON(http.StatusOK, product)
 }

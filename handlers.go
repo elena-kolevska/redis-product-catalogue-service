@@ -256,7 +256,10 @@ func imagesDelete(c echo.Context) error {
 		Id:        imageId,
 		ProductId: productId,
 	}
-	image.delete(redisConn)
+	err = image.delete(redisConn)
+	if err != nil {
+		return serverErrorResponse(c, err)
+	}
 
 	return c.NoContent(http.StatusNoContent)
 }

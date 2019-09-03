@@ -21,22 +21,37 @@ func TestImage_setId(t *testing.T) {
 	assert.Equal(t, 1, image.Id)
 }
 
+
+func TestImage_setUrl(t *testing.T) {
+	image := Image{
+		Id: 78,
+	}
+	image.setUrl()
+
+	assert.Equal(t, config.BaseUri + fmt.Sprintf("/images/%v", 78), image.Url)
+}
+
 func TestImage_delete(t *testing.T) {
 	// Too trivial. Should probably remove it
-
 	image := Image{
 		Id: 1,
+		ProductId: 2,
 	}
 	conn := redigomock.NewConn()
 
-	cmd1 := conn.Command("HDEL", config.KeyImages, image.Id)
-	cmd2 := conn.Command("HDEL", getProductImagesKeyName(image.ProductId), image.Id)
-	cmd3 := conn.Command("DEL", getImageNameById(image.Id))
+	cmd1 := conn.Command("MULTI")
+	cmd3 := conn.Command("SREM", fmt.Sprintf(config.KeyProductImages, "2"), 1)
+	cmd2 := conn.Command("HDEL", config.KeyImages, image.Id)
+	cmd4 := conn.Command("DEL", getImageNameById(image.Id))
+	cmd5 := conn.Command("EXEC")
 
-	image.delete(conn)
+	err := image.delete(conn)
+	if err != nil {
+		t.Error(err)
+	}
 
-	if conn.Stats(cmd1) + conn.Stats(cmd2) + conn.Stats(cmd3) != 3 {
-		t.Error("Keys weren't deleted properly")
+	if conn.Stats(cmd1) + conn.Stats(cmd2) + conn.Stats(cmd3) + conn.Stats(cmd4) + conn.Stats(cmd5) != 5 {
+		t.Error("Some keys weren't deleted properly")
 	}
 }
 
@@ -48,11 +63,10 @@ func TestSaveNewImage(t *testing.T) {
 
 	conn := redigomock.NewConn()
 	_ = conn.Command("INCR", config.KeyImageCounter).Expect(int64(imageId))
-	keyName := getImageNameById(imageId)
 
-	_ = conn.Command("SET", keyName, imageData).Expect("OK")
+	_ = conn.Command("SET", getImageNameById(imageId), imageData).Expect("OK")
 	_ = conn.Command("HSET", config.KeyImages, imageId, productId).Expect("OK")
-	_ = conn.Command("HSET", fmt.Sprintf(config.KeyProductImages, "2"), imageId, config.BaseUri + "/images/1",).Expect("OK")
+	_ = conn.Command("SADD", fmt.Sprintf(config.KeyProductImages, "2"), imageId,).Expect("OK")
 
 
 	image, err := saveNewImage(productId, imageData, conn)
@@ -67,3 +81,6 @@ func TestSaveNewImage(t *testing.T) {
 	})
 }
 
+func TestGetImageNameById(t *testing.T){
+	assert.Equal(t, fmt.Sprintf(config.KeyImage, 78), getImageNameById(78))
+}

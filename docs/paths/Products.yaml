@@ -40,6 +40,23 @@ get:
       schema:
         type: int
         example: 1
+    - name: page
+      in: query
+      description: Page number
+      required: false
+      style: form
+      schema:
+        type: int
+        example: 3
+        default: 1
+    - name: search
+      in: query
+      description: Search string (prefix searching only)
+      required: false
+      style: form
+      schema:
+        type: string
+        example: Enterprise
   responses:
     200:
       description: 'Ok'

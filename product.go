@@ -24,7 +24,7 @@ type Product struct {
 	Images           []Image  `redis:"-" json:"images" `
 }
 
-func (product *Product) setId() {
+func (product *Product) setId(redisConn redis.Conn) {
 	id, _ := redis.Int(redisConn.Do("INCR", config.KeyProductCounter))
 	product.Id = id
 }
@@ -164,7 +164,7 @@ func saveNewProduct(product *Product, redisConn redis.Conn) error {
 	// Get a product id from the id counter
 	// and assign it to the product struct
 	//////////////////////////////////////////
-	product.setId()
+	product.setId(redisConn)
 
 	/////////////////////
 	// Save hash to Redis

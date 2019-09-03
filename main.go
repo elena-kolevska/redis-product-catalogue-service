@@ -7,12 +7,16 @@ import (
 )
 
 var (
-	pool      = newPool()
-	redisConn = pool.Get()
-	config    = getConfiguration()
+	pool      *redis.Pool
+	redisConn redis.Conn
+	config    Config
 )
 
 func main() {
+	config = getConfiguration()
+	pool      = newPool()
+	redisConn = pool.Get()
+
 	defer redisConn.Close()
 
 	// Authenticate with Redis if a password was provided in the conf file

@@ -51,3 +51,6 @@ go test
 
 ## TODO
 - Implement authentication
+- More complete pagination
+- Finish tests for the Product model
+- Create a Category Index endpoint

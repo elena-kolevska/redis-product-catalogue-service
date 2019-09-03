@@ -21,13 +21,33 @@ func (image *Image) setUrl() {
 	image.Url = config.BaseUri + fmt.Sprintf("/images/%v", strconv.Itoa(image.Id))
 }
 
-func (image *Image) delete(redisConn redis.Conn) {
+func (image *Image) delete(redisConn redis.Conn) error {
 	// Start a transaction and send all commands in a pipeline
-	_, _ = redisConn.Do("MULTI")
-	_, _ = redisConn.Do("SREM", getProductImagesKeyName(image.ProductId), image.Id)
-	_, _ = redisConn.Do("HDEL", config.KeyImages, image.Id)
-	_, _ = redisConn.Do("DEL", getImageNameById(image.Id))
-	_, _ = redisConn.Do("EXEC")
+	_, err := redisConn.Do("MULTI")
+	if err != nil {
+		return err
+	}
+	_, err = redisConn.Do("SREM", getProductImagesKeyName(image.ProductId), image.Id)
+	if err != nil {
+		return err
+	}
+
+	_, err = redisConn.Do("HDEL", config.KeyImages, image.Id)
+	if err != nil {
+		return err
+	}
+
+	_, err = redisConn.Do("DEL", getImageNameById(image.Id))
+	if err != nil {
+		return err
+	}
+
+	_, err = redisConn.Do("EXEC")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getImageDataById(id int, redisConn redis.Conn) ([]byte, error) {

@@ -18,6 +18,16 @@ info:
     }
     ```
 
+    # Pagination
+
+
+    ```json
+    {
+        "title": "Error title",
+        "description": "Error description",
+    }
+    ```
+
     Endpoint specific errors are defined in their appropriate endpoint
   x-logo:
     url: "https://i.ibb.co/VS6VZLV/logo.png"
@@ -25,7 +35,7 @@ info:
 
 servers:
   - description: Staging
-    url: api/
+    url: http://ec2-3-122-233-203.eu-central-1.compute.amazonaws.com/api
 
 tags:
   - name: Products

@@ -19,16 +19,20 @@ info:
     ```
 
     # Pagination
-
+    Paginated data is returned in the following format
 
     ```json
     {
-        "title": "Error title",
-        "description": "Error description",
+        "data": [],
+        "current_page": 1,
+        "per_page": 20,
     }
     ```
 
-    Endpoint specific errors are defined in their appropriate endpoint
+    You can move through pages by adding the `page=X` parameter in the query (described in more details in the "Get Products" endpoint).
+
+    NOTE: Work not complete
+
   x-logo:
     url: "https://i.ibb.co/VS6VZLV/logo.png"
     altText: Petstore logo

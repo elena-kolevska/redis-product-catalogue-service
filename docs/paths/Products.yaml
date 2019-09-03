@@ -18,7 +18,9 @@ post:
             description: The Rocinante (Roci) is a Corvette-class frigate with multiple roles, such as torpedo bomber and boarding party insertion. Originally commissioned as the MCRN Tachi, the ship was stationed onboard the MCRN Battleship Donnager.
             vendor: MCRN
             currency: CNY
-            main_category: 1
+            main_category:
+              id: 1
+              name: Science Vessels
             images: null
     422:
       description: 'Validation errors'

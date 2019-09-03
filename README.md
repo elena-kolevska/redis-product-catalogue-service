@@ -32,9 +32,10 @@ Category
 ![data Model](data_model.png "Redis Data Model")
 
 ## Documentation
-You can find the documentation at [here](https://elena-kolevska.github.io/redis-product-catalogue-service/).  
+You can find the API documentation [here](https://elena-kolevska.github.io/redis-product-catalogue-service/).  
 
-The API is documented with the OpenAPI 3 specification. The `yaml` files are in the `docs` folder.
+It's written using the OpenAPI 3 specification, with the `yaml` files living in the `docs` folder.  
+
 To export the documentation to a self-contained, zero-dependencies html file, you can use the [ReDoc library](https://github.com/Redocly/redoc). Just run the following command:  
 
 ```redoc-cli bundle docs/index.yaml --output docs/index.html --title "Redis Product Catalogue Service Documentation" --options.theme.colors.primary.main=#D82C20```

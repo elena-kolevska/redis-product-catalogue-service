@@ -53,7 +53,6 @@ func (product *Product) setCategory(redisConn redis.Conn) {
 
 func (product *Product) setImages(redisConn redis.Conn) {
 	imageIds, _ := redis.Ints(redisConn.Do("SMEMBERS", getProductImagesKeyName(product.Id)))
-	//values, _ := getHashAsStringMap(getProductImagesKeyName(product.Id), redisConn)
 	for _, imageId := range imageIds {
 		image := Image{
 			Id:  imageId,
@@ -65,8 +64,6 @@ func (product *Product) setImages(redisConn redis.Conn) {
 
 // Similar behavior as `setImages` but uses the string map received from a pipeline
 func (product *Product) setImagesFromStringMap(imageIds []int) {
-	//images := make([]Image, 0)
-
 	for _, imageId := range imageIds {
 		image := Image{
 			Id:  imageId,
@@ -74,8 +71,6 @@ func (product *Product) setImagesFromStringMap(imageIds []int) {
 		image.setUrl()
 		product.Images = append(product.Images, image)
 	}
-
-	//product.Images = images
 }
 
 func (product *Product) delete(redisConn redis.Conn) error {
@@ -95,13 +90,13 @@ func (product *Product) delete(redisConn redis.Conn) error {
 		return err
 	}
 
-	// Delete all product images
 	productImagesKeyName := getProductImagesKeyName(product.Id)
 	imageValues, _ := getHashAsStringMap(productImagesKeyName, redisConn)
 
 	// Start a transaction and send all commands in a pipeline
 	_, _ = redisConn.Do("MULTI")
 
+	// Delete all product images
 	for imageId, _ := range imageValues {
 		imageId, _ := strconv.Atoi(imageId)
 		_ = redisConn.Send("DEL", getImageNameById(imageId))
@@ -166,22 +161,24 @@ func saveNewProduct(product *Product, redisConn redis.Conn) error {
 	//////////////////////////////////////////
 	product.setId(redisConn)
 
+	// Start a transaction and send all commands in a pipeline
+	_, err := redisConn.Do("MULTI")
+	if err != nil {
+		return err
+	}
+
 	/////////////////////
 	// Save hash to Redis
 	/////////////////////
-	_, err := redisConn.Do("HSET", redis.Args{product.getKeyName()}.AddFlat(product)...)
-	if err != nil {
-		return err
-	}
+	_ = redisConn.Send("HSET", redis.Args{product.getKeyName()}.AddFlat(product)...)
 
 	// Add product to sorted set of all products
-	_, err = redisConn.Do("ZADD", config.KeyAllProducts, 0, product.getLexName())
-	if err != nil {
-		return err
-	}
+	_ = redisConn.Send("ZADD", config.KeyAllProducts, 0, product.getLexName())
 
 	// Add product to sorted set of products in category
-	_, err = redisConn.Do("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
+	_ = redisConn.Send("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
+
+	_, err = redisConn.Do("EXEC")
 	if err != nil {
 		return err
 	}
@@ -203,33 +200,21 @@ func updateProduct(product *Product, oldProduct *Product, redisConn redis.Conn) 
 	// the old categorised product list and add it to the new one
 	//////////////////////////////////////////
 	if oldProduct.MainCategoryId != product.MainCategoryId {
-		_, err = redisConn.Do("ZREM", getProductsInCategoryKeyName(oldProduct.MainCategoryId), oldProduct.getLexName())
+		_, err = redisConn.Do("MULTI")
 		if err != nil {
 			return err
 		}
 
-		_, err = redisConn.Do("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
+		_ = redisConn.Send("ZREM", getProductsInCategoryKeyName(oldProduct.MainCategoryId), oldProduct.getLexName())
+		_ = redisConn.Send("ZADD", getProductsInCategoryKeyName(product.MainCategoryId), 0, product.getLexName())
+
+		_, err = redisConn.Do("EXEC")
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func getProductImagesFromHash(values map[string]string) []Image {
-	images := make([]Image, 0)
-
-	for imageId, imageUrl := range values {
-		imageId, _ := strconv.Atoi(imageId)
-		image := Image{
-			Id:  imageId,
-			Url: config.BaseUri + imageUrl,
-		}
-		images = append(images, image)
-	}
-
-	return images
 }
 
 // Helper functions

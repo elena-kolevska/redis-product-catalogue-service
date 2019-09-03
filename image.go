@@ -22,25 +22,16 @@ func (image *Image) setUrl() {
 }
 
 func (image *Image) delete(redisConn redis.Conn) error {
+
 	// Start a transaction and send all commands in a pipeline
 	_, err := redisConn.Do("MULTI")
 	if err != nil {
 		return err
 	}
-	_, err = redisConn.Do("SREM", getProductImagesKeyName(image.ProductId), image.Id)
-	if err != nil {
-		return err
-	}
 
-	_, err = redisConn.Do("HDEL", config.KeyImages, image.Id)
-	if err != nil {
-		return err
-	}
-
-	_, err = redisConn.Do("DEL", getImageNameById(image.Id))
-	if err != nil {
-		return err
-	}
+	_ = redisConn.Send("SREM", getProductImagesKeyName(image.ProductId), image.Id)
+	_ = redisConn.Send("HDEL", config.KeyImages, image.Id)
+	_ = redisConn.Send("DEL", getImageNameById(image.Id))
 
 	_, err = redisConn.Do("EXEC")
 	if err != nil {
@@ -65,23 +56,25 @@ func saveNewImage(productId int, data []byte, redisConn redis.Conn) (Image, erro
 	// Create image key name
 	keyName := getImageNameById(image.Id)
 
-	_, err := redisConn.Do("SET", keyName, data)
+	// Start a transaction and send all commands in a pipeline
+	_, err := redisConn.Do("MULTI")
 	if err != nil {
 		return Image{}, err
 	}
 
+	_ = redisConn.Send("SET", keyName, data)
+
 	// Save image to "all images" hash
-	_, err = redisConn.Do("HSET", config.KeyImages, image.Id, productId)
-	if err != nil {
-		return Image{}, err
-	}
+	_ = redisConn.Send("HSET", config.KeyImages, image.Id, productId)
 
 
 	// Add image to product's images hash
 	productImagesKeyName := getProductImagesKeyName(productId)
-	_, err = redisConn.Do("SADD", productImagesKeyName, image.Id)
+	_ = redisConn.Send("SADD", productImagesKeyName, image.Id)
+
+	_, err = redisConn.Do("EXEC")
 	if err != nil {
-		return image, err
+		return Image{}, err
 	}
 
 	return image, nil

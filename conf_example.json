@@ -1,16 +1,20 @@
 {
-  "web_server_port": 8080,
+  "web_server_port": 1234,
+  "base_uri": "http://localhost:8080/api",
 
   "key_categories": "categories",
   "key_product_counter": "product_counter",
+  "key_image_counter": "image_counter",
 
   "key_product": "product:%v",
-  "key_all_products":  "products",
-  "key_all_products_lex": "products:lex",
+  "key_image": "image:%v",
+  "key_images": "images",
+  "key_product_images": "product:%v:images",
+
+  "key_all_products": "products",
   "key_products_in_category":  "products:cat:%v",
-  "key_products_in_category_lex":  "products:lex:cat:%v",
-  "redis_endpoint": "localhost:6379",
-  "redis_password": "",
+  "redis_endpoint": "redis-17213.c135.eu-central-1-1.ec2.cloud.redislabs.com:17213",
+  "redis_password": "zNgillAxPAQbh2Dm8AwSYkF7jTj6LiRa",
 
   "results_per_page": 20
 }

@@ -29,7 +29,7 @@ Category
 - Products : Product (0..n)
 
 ## Physical Data Model
-![data Model](data_model.png "Redis Data Model")
+![data Model](images/data_model.png "Redis Data Model")
 
 ## Documentation
 You can find the API documentation [here](https://elena-kolevska.github.io/redis-product-catalogue-service/).  

@@ -1,5 +1,5 @@
 # Redis Product Catalogue Service
-[https://elena-kolevska.github.io/redis-product-catalogue-service/]()
+[https://elena-kolevska.github.io/redis-product-catalogue-service](https://elena-kolevska.github.io/redis-product-catalogue-service/)
 
 ## Overview
 A simple REST API providing a way to manage and browse products

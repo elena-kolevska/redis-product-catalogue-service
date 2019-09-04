@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/bugsnag/bugsnag-go"
 	"github.com/gomodule/redigo/redis"
 	"github.com/labstack/echo"
 )
@@ -16,6 +17,11 @@ func main() {
 	config = getConfiguration()
 	pool      = newPool()
 	redisConn = pool.Get()
+	bugsnag.Configure(bugsnag.Configuration{
+		APIKey:          config.BugsnagKey,
+		// The import paths for the Go packages containing the source files
+		ProjectPackages: []string{"main", "github.com/elena-kolevska/redis-product-catalogue-service"},
+	})
 
 	defer redisConn.Close()
 

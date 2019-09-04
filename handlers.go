@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/bugsnag/bugsnag-go"
 	"github.com/gomodule/redigo/redis"
 	"github.com/labstack/echo"
 	"github.com/labstack/gommon/log"
@@ -266,5 +267,6 @@ func imagesDelete(c echo.Context) error {
 
 func serverErrorResponse(c echo.Context, err error) error {
 	log.Error(err)
+	_ = bugsnag.Notify(err)
 	return c.JSON(serverError.HttpStatus, serverError)
 }

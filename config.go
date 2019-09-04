@@ -23,7 +23,8 @@ type Config struct {
 	KeyAllProducts        string `json:"key_all_products"`
 	KeyProductsInCategory string `json:"key_products_in_category"`
 
-	ResultsPerPage int `json:"results_per_page"`
+	ResultsPerPage int    `json:"results_per_page"`
+	BugsnagKey     string `json:"bugsnag_key"`
 }
 
 func getConfiguration() Config {
@@ -62,6 +63,8 @@ func getDefaultConfiguration() Config {
 		KeyProductImages:      "product:%v:images",
 		KeyAllProducts:        "products",
 		KeyProductsInCategory: "products:cat:%v",
-		ResultsPerPage:        20,
+
+		ResultsPerPage: 20,
+		BugsnagKey:     "",
 	}
 }
